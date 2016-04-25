@@ -13,5 +13,6 @@ dedisperse*.py
 SQL.py
     Convert the text files into SQL format database.
 
-web.py
-    Read in the SQL database and plot the Cordes&McLaughlin style plot in user's browser.
+web.py or plot.py
+    web.py: Read in the SQL database and plot the Cordes&McLaughlin style plot in user's browser.
+    plot.py: Read in text file plot the Cordes&McLaughlin style plot on your screen.
