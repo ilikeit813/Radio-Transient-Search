@@ -1,4 +1,17 @@
 TransientRadioSearch
 ====================
 
-Python Transient Radio Search 
+Python Transient Radio Search Project
+
+Pipeline:
+dedisperse*.py
+    This code Read in a Raw data (dedispersionV2.py) or spectrogram (dedisperse.py),
+    mask out the radio frequency interference, use MPI to parallel compute the dedispersed
+    time series with Dispersion measure trials, record candicates over criterions in
+    text files.
+
+SQL.py
+    Convert the text files into SQL format database.
+
+web.py
+    Read in the SQL database and plot the Cordes&McLaughlin style plot in user's browser.
