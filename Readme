@@ -5,7 +5,7 @@ Python Transient Radio Search Project
 
 Pipeline:
 dedisperse*.py
-    This code Read in a Raw data (dedispersionV2.py) or spectrogram (dedisperse.py),
+    This code Read in a Raw data (dedisperseV2.py) or spectrogram (dedisperse.py),
     mask out the radio frequency interference, use MPI to parallel compute the dedispersed
     time series with Dispersion measure trials, record candicates over criterions in
     text files.
