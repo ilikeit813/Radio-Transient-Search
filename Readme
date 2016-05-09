@@ -1,4 +1,4 @@
-TransientRadioSearch
+Transient Radio Search
 ====================
 
 Python Transient Radio Search Project
@@ -16,3 +16,8 @@ SQL.py
 web.py or plot.py
     web.py: Read in the SQL database and plot the Cordes&McLaughlin style plot in user's browser.
     plot.py: Read in text file plot the Cordes&McLaughlin style plot on your screen.
+
+For more detail please find my thesis at Virginia Tech ETD or this link
+http://hdl.handle.net/10919/70886
+
+Jr Wei Tsai
