@@ -4,6 +4,8 @@ Transient Radio Search
 Python Transient Radio Search Project
 
 Pipeline:
+FFT.py
+    Use this code to do FFT on raw binary observation data to Numpy arry format for further analysis.
 dedisperse*.py
     This code Read in a Raw data (dedisperseV2.py) or spectrogram (dedisperse.py),
     mask out the radio frequency interference, use MPI to parallel compute the dedispersed
