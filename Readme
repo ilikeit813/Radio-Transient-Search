@@ -4,17 +4,42 @@ Radio Transient Search
 Python Radio Transient Search Project
 
 Pipeline:
-ft.sh
-    Use this code to do FFT on raw binary observation data to Numpy arry format for further analysis. Requires ft.py, errors.py, drx.y, dp.py to get job done.
-    
-dedisperse.py
-    This code Read in a spectrogram in Numpy array form, mask out the radio frequency interference, use MPI to parallel compute the dedispersed time series with Dispersion measure trials, record candicates over criterions in text files.
+1. Use ft.sh to prodece spectrogram.
+2. Use dedisperse.sh to dedisperse spectrogram and generate candidates list.
 
+
+
+ft.sh (need ft.py, dp.py,drx.py,errors.py)
+    Use this code to do FFT on raw binary observation data to Numpy arry format   
+    for further analysis. Requires ft.py, errors.py, drx.y, dp.py to get job
+    done.
+
+dvdedisperse.sh (need dv.py, dp.py, drx.py, errors.py)
+    Use this code to parallelly excute dv.py, which will looking for transient.
+    Need to determine how many processors/nodes needed. This depends on the
+    limitation of memory size. For example, if the data is 1T and a node provide
+    256G, then at least 8 nodes is need. (the extra 1T is for temporal storeage) 
+    
+dv.py
+    This code Read in a spectrogram in Numpy array form, mask out the radio
+    frequency interference, use MPI to parallel compute the dedispersed time
+    series with Dispersion measure trials, record candicates over criterions in
+    text files.
+
+drx.py
+    Bridge betwen format by LWA DRSU and Python/Numpy format 
+
+dp.py
+    define constants
+
+errors.py
+    define error response    
 SQL.py
     Convert the text files into SQL format database.
 
 web.py or plot.py
-    web.py: Read in the SQL database and plot the Cordes&McLaughlin style plot in user's browser.
+    web.py: Read in the SQL database and plot the Cordes&McLaughlin style plot in
+    user's browser.
 
 plot.py: Read in text file plot the Cordes&McLaughlin style plot on your screen.
 
