@@ -14,7 +14,7 @@ ft.sh (need ft.py, dp.py,drx.py,errors.py)
     for further analysis. Requires ft.py, errors.py, drx.y, dp.py to get job
     done.
 
-dv.sh (need dv.py, dp.py, drx.py, errors.py)
+dv.sh (need dv.py, dp.py, drx.py, errors.py, disper.py)
     Use this code to parallelly excute dv.py, which will looking for transient.
     Need to determine how many processors/nodes needed. This depends on the
     limitation of memory size. For example, if the data is 1T and a node provide
@@ -33,7 +33,14 @@ dp.py
     define constants
 
 errors.py
-    define error response    
+    define error response
+
+disper.py
+    calculate the DM spacing which dependent on the SNR smearing torrence (SSratio)
+    , current DM trial (DMtrial), observing central frequency (nuCenteralMHz), 
+    frequency channel width (channelMHz), whole bandwidth (BMHz) and temporal bin
+    resolution(temporal_resol)
+    
 SQL.py
     Convert the text files into SQL format database.
 
