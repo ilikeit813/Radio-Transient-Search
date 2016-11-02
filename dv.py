@@ -3,12 +3,14 @@
 #V3, super cluster technique
 
 from mpi4py import MPI
+import disper
 import sys
 import numpy as np
 import glob
 import os
 import time
 import sys
+
 
 def DMs(DMstart,DMend,dDM):
     """
@@ -260,7 +262,7 @@ if __name__ == '__main__':
     for i in range(fpp):
         spectarray[i,:,:] = np.load(fn[rank*fpp+i])
         bp[i,rank,:]= np.median(spectarray[i,:,:], 0)
- 
+
     bpall=bp*0. #initiate a 4 hour blank std
     comm.Allreduce(bp,bpall,op=MPI.SUM) #merge the 4 hour std from all processor
 
@@ -306,8 +308,9 @@ if __name__ == '__main__':
 
         tbmax=0 #repeat control, if dedispersion time series are identical, skip dedispersion calculation
         while DM < DMend:
-            if DM >=1000.: dDM = 1.
-            else: dDM = 0.1
+            #if DM >=1000.: dDM = 1.
+            #else: dDM = 0.1
+            dDM = disper.dDMi(DMtrial = 1.*DM, nuCenteralMHz = 1.*cent_freq, channelMHz = freq[1]-freq[0], BMHz = freq[-1]-freq[0], SSratio = 0.95, temporal_resol = 1.*tInt)
             tb=np.round((delay2(freq,DM)/tInt)).astype(np.int32)
             if tb.max()-tbmax==0:#identical dedispersion time series checker
                 tbmax=tb.max()
