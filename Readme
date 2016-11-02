@@ -5,7 +5,7 @@ Python Radio Transient Search Project
 
 Pipeline:
 1. Use ft.sh to prodece spectrogram.
-2. Use dedisperse.sh to dedisperse spectrogram and generate candidates list.
+2. Use dv.sh to dedisperse spectrogram and generate candidates list.
 
 
 
