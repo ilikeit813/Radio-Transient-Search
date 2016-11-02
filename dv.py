@@ -244,7 +244,7 @@ if __name__ == '__main__':
     tInt = np.load('tInt.npy')
     std = np.zeros((fpp, nodes*pps))
 
-    pol = 1
+    pol = 1 # 0 = lower tunning, 1 = higher tunning.
 
     DMstart= 1000. #1.0 #initial DM trial
     DMend  = 5000. #90.0 #finial  DM trial
@@ -310,7 +310,7 @@ if __name__ == '__main__':
         while DM < DMend:
             #if DM >=1000.: dDM = 1.
             #else: dDM = 0.1
-            dDM = disper.dDMi(DMtrial = 1.*DM, nuCenteralMHz = 1.*cent_freq, channelMHz = freq[1]-freq[0], BMHz = freq[-1]-freq[0], SSratio = 0.95, temporal_resol = 1.*tInt)
+            dDM = disper.dDMi(DMtrial = 1.*DM, nuCenteralMHz = 1.*cent_freq, channelMHz = freq[1]-freq[0], BMHz = freq[-1]-freq[0], SSratio = 0.8, temporal_resol = 1.*tInt)
             tb=np.round((delay2(freq,DM)/tInt)).astype(np.int32)
             if tb.max()-tbmax==0:#identical dedispersion time series checker
                 tbmax=tb.max()
@@ -329,13 +329,13 @@ if __name__ == '__main__':
             tstotal = tstotal[tb.max():len(tstotal)-tb.max()]#cut the dispersed time lag
 
 
-            #'''
+            '''
             # save the time series around the Pulsar's DM
             if rank == 0:
                 if np.abs(DM - 9.1950) <= dDM:
                     print 'DM=',DM
                     np.save('ts_pol%.1i_DMx100_%.6i' % (pol,DM*100),tstotal)
-            #'''
+            '''
 
             #"""#search for signal with decimated timeseries
             if rank<npws:#timeseries is ready for signal search
