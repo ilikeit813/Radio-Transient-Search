@@ -14,7 +14,7 @@ ft.sh (need ft.py, dp.py,drx.py,errors.py)
     for further analysis. Requires ft.py, errors.py, drx.y, dp.py to get job
     done.
 
-dvdedisperse.sh (need dv.py, dp.py, drx.py, errors.py)
+dv.sh (need dv.py, dp.py, drx.py, errors.py)
     Use this code to parallelly excute dv.py, which will looking for transient.
     Need to determine how many processors/nodes needed. This depends on the
     limitation of memory size. For example, if the data is 1T and a node provide
