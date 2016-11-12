@@ -14,7 +14,7 @@ Pipeline:
    which is find out the low freqency(fcl),high frequency (fch) to be used in ft.sh and dv.sh.
    For example, in 16MHz band width from 34 to 50MHz, RFI is relatively low at 41-42MHz
    then fcl = 41MHz, fch = 42MHz
-0. Use ft.sh to produce spectrogram.
+0. Use ft.sh to produce spectrogram again with new frequency tunning you favorite (fcl, fch).
 0. Use dv.sh to dedisperse spectrogram and generate candidates list.
 
 
