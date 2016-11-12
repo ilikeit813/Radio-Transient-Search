@@ -4,8 +4,12 @@ Radio Transient Search
 Python Radio Transient Search Project
 
 Pipeline:
-1. Use ft.sh to prodece spectrogram.
-2. Use dv.sh to dedisperse spectrogram and generate candidates list.
+0. Use waterfall.sh to produce coarse spectrogra
+0. Use chkwaterfall.sh to check if there are uncontinue file.
+0. Use eyexam.py to do final check if there are missing file, if still there are missing file,
+   create a mean spectrogram from 2 nearby spectrograms to interpolate and insert it. 
+0. Use ft.sh to produce spectrogram.
+0. Use dv.sh to dedisperse spectrogram and generate candidates list.
 
 
 
