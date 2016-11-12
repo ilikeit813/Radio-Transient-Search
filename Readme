@@ -8,7 +8,7 @@ Pipeline:
 0. Use chkwaterfall.sh to check if there are uncontinue file.
 0. Use eyexam.py to do final check if there are missing file, if still there are missing file,
    create a mean spectrogram from 2 nearby spectrograms to interpolate and insert it. 
-0. Use waterfallcombine.py to combine the npy file into a waterfall.npy
+0. Use waterfallcombine.py to combine the individual npy files into a waterfall.npy
 0. Use what ever tools, ideas you like to find out the bandpass, baseline in waterfall.npy
 0. Use waterfall.npy to find a comfort zone which is RFI quiet, which is find out the 
    low freqency(fcl),high frequency (fch) to be used in ft.sh and dv.sh.
