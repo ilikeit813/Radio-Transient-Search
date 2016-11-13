@@ -26,7 +26,7 @@ Pipeline:
     to fliter out candidate with in time range 2135-2145, and save the result in order of time($4), DM($3), S/N($2) -5 into plot.txt
     then use gnuplot, afer inter the gnuplot command mode, use command
     plot 'plot.txt' using 1:2:3 with points pt 6 ps var
-    to plot the scatter plot, x is time, y is DM trials, radius proportional to S/N. the example file of jamie.txt(2.5MB) is available in the following link
+    to plot the scatter plot, x is time, y is DM trials, radius proportional to S/N. the example file of jamie.txt(19.9MB) is available in the following link
     https://drive.google.com/file/d/0BwU6yJVYOcbXc25HQl9ZV1I2Ulk/view?usp=sharing
     14. Plot the spectrogram if you think you found one!!! use cadisp.py to generate the spectrogram, use cadiplot.py to plot it.
 
@@ -79,4 +79,3 @@ For more detail please find my thesis at Virginia Tech ETD or this link
 http://hdl.handle.net/10919/70886
 
 Jr-Wei Tsai
-
