@@ -17,7 +17,7 @@ def main(args):
 	srate = 19600000
 	#for offset_i in range(4306, 4309):# one offset = nChunks*nFramesAvg skiped
 	for offset_i in range(0, 1):# one offset = nChunks*nFramesAvg skiped
-		offset = int((event_time)*4/(1.*LFFT/srate))
+		offset = int((event_time)*4/(1.*4096/srate))
 		# Build the DRX file
 		try:
                         fh = open(getopt.getopt(args,':')[1][0], "rb")
