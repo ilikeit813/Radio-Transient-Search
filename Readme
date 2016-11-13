@@ -16,7 +16,7 @@ Pipeline:
     In the given example, one of RFI comfort zones is 40.6-42.2MHz and 66.6-68.1MHz.
     
 	0. Use ft.sh to produce spectrogram again with new frequency tunning you favorite (fcl, fch). In the example, the frequency bins of RFI comfort zone is 1700-2100 and high 670-1070 out of 4095(LFFT-1)
-    0. Check the file continuity again using chk.sh, eyexam.py
+    0. Check the file continuity again using chkspectrogram.sh, eyexam.py
     0. Use freqtint.py to generate the tInt(temporal resolution constant), freq1, freq2 for dv.sh.(frequency information)
 	0. Use dv.sh to dedisperse spectrogram and generate candidates list.
 
