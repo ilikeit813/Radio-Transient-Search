@@ -20,8 +20,8 @@ Pipeline:
     0. Check the file continuity again using chkspectrogram.sh, eyexam.py
     0. If there are broken frames, that can't be FFT, use interpolate.py to insert the files.    
     0. Use freqtint.py to generate the tInt(temporal resolution constant), freq1, freq2 for dv.sh.(frequency information)
-	0. Use dv.sh to dedisperse spectrogram and generate candidates list.
-    0. After generate the candidate txt, use awk and gnuplot to do eye examine. For example: under os X usd command line:
+	0. Use dv.sh (change the pol =1 or 2 for low or high tunning in dv.py) to dedisperse spectrogram and generate candidates list.
+	0. After generate the candidate txt, use awk and gnuplot to do eye examine. For example: under os X usd command line:
     awk '{if($4<2135 || $4>2145) print $4,$3,$2-5}' "jamie.txt" > plot.txt
     to fliter out candidate with in time range 2135-2145, and save the result in order of time($4), DM($3), S/N($2) -5 into plot.txt
     then use gnuplot, afer inter the gnuplot command mode, use command
