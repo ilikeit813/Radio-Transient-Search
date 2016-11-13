@@ -8,8 +8,8 @@ Pipeline:
 	0. Use chkwaterfall.sh to check if there are uncontinue file.
 	0. Use eyexam.py to do final check if there are missing file, if still there are missing file, create a mean spectrogram from 2 nearby spectrograms to interpolate and insert it. 
 	0. Use waterfallcombine.py to combine the individual npy files into a waterfall.npy
-	0. Use watchwaterfall.py to view the spectrogram (waterfall.npy)
-    0. Watch the spectrogram (watchwaterfall.py) to find a comfort zone which is RFI quiet, which is find out the low freqency(fcl),high frequency (fch) to be used in ft.sh and dv.sh. For example, in 16MHz band width from 34 to 50MHz, RFI is relatively low at 41-42MHz (then fcl = 41MHz, fch = 42MHz)
+	0. Use watchwaterfall.py to view the spectrogram (waterfall.npy).
+	0. Watch the spectrogram (watchwaterfall.py) to find a comfort zone which is RFI quiet, which is find out the low freqency(fcl),high frequency (fch) to be used in ft.sh and dv.sh. For example, in 16MHz band width from 34 to 50MHz, RFI is relatively low at 41-42MHz (then fcl = 41MHz, fch = 42MHz)
 	0. Use ft.sh to produce spectrogram again with new frequency tunning you favorite (fcl, fch).
 	0. Use dv.sh to dedisperse spectrogram and generate candidates list.
 
