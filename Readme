@@ -6,7 +6,8 @@ Python Radio Transient Search Project
 Pipeline:
 	0. Use waterfall.sh to produce coarse spectrogram
 	0. Use chkwaterfall.sh to check if there are uncontinue file.
-	0. Use eyexam.py to do final check if there are missing file, if still there are missing file, create a mean spectrogram from 2 nearby spectrograms to interpolate and insert it. 
+    0. If there are broken frames, that can't be FFT, use interpolate to insert the files.
+	0. Use eyexam.py to do final check if there are missing file, if still there are missing file, create a mean spectrogram from 2 nearby spectrograms to interpolate.py and insert it. 
 	0. Use waterfallcombine.py to combine the individual npy files into a waterfall.npy
     (An example of waterfall.npy is available at https://drive.google.com/file/d/0BwU6yJVYOcbXbXJkXzRKNnM1R1E/view?usp=sharing)
     The file size is 420MB, with two tuning centering at 42, 74MHz, the temporal and channel bin size is 14 sec and 4.7KHz. The observation is tracking at a milli-second pulsar with giant pulse. Becasue the this is a coarse spectrogram, you won't see giant or regular pulses. The dimension of the file is (6408, 2, 4095) which means (temporal bins, tunnings, frequency channels). Tuning is 42MHz for 0, 74MHz for 1. 
@@ -17,6 +18,7 @@ Pipeline:
     
 	0. Use ft.sh to produce spectrogram again with new frequency tunning you favorite (fcl, fch). In the example, the frequency bins of RFI comfort zone is 1700-2100 and high 670-1070 out of 4095(LFFT-1)
     0. Check the file continuity again using chkspectrogram.sh, eyexam.py
+    0. If there are broken frames, that can't be FFT, use interpolate.py to insert the files.    
     0. Use freqtint.py to generate the tInt(temporal resolution constant), freq1, freq2 for dv.sh.(frequency information)
 	0. Use dv.sh to dedisperse spectrogram and generate candidates list.
 
