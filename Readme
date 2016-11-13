@@ -4,24 +4,24 @@ Radio Transient Search
 Python Radio Transient Search Project
 
 Pipeline:
-	0. Use waterfall.sh to produce coarse spectrogram
-	0. Use chkwaterfall.sh to check if there are uncontinue file.
+    0. Use waterfall.sh to produce coarse spectrogram
+    0. Use chkwaterfall.sh to check if there are uncontinue file.
     0. If there are broken frames, that can't be FFT, use interpolate to insert the files.
-	0. Use eyexam.py to do final check if there are missing file, if still there are missing file, create a mean spectrogram from 2 nearby spectrograms to interpolate.py and insert it. 
-	0. Use waterfallcombine.py to combine the individual npy files into a waterfall.npy
+    0. Use eyexam.py to do final check if there are missing file, if still there are missing file, create a mean spectrogram from 2 nearby spectrograms to interpolate.py and insert it. 
+    0. Use waterfallcombine.py to combine the individual npy files into a waterfall.npy
     (An example of waterfall.npy is available at https://drive.google.com/file/d/0BwU6yJVYOcbXbXJkXzRKNnM1R1E/view?usp=sharing)
     The file size is 420MB, with two tuning centering at 42, 74MHz, the temporal and channel bin size is 14 sec and 4.7KHz. The observation is tracking at a milli-second pulsar with giant pulse. Becasue the this is a coarse spectrogram, you won't see giant or regular pulses. The dimension of the file is (6408, 2, 4095) which means (temporal bins, tunnings, frequency channels). Tuning is 42MHz for 0, 74MHz for 1. 
     
-	0. Use watchwaterfall.py to view the spectrogram (waterfall.npy).
-	0. Watch the spectrogram (watchwaterfall.py) to find a comfort zone which is RFI quiet, which is find out the low freqency(fcl),high frequency (fch) to be used in ft.sh and dv.sh. For example, in 16MHz band width from 34 to 50MHz, RFI is relatively low at 41-42MHz (then fcl = 41MHz, fch = 42MHz). A typical spectrogram of 4 hours centering at 42, 74 MHz with 16MHz bandwidth looks like "Low.png"(42MHz), "High.png" (74MHz) which is baseline, bandpass, RFI corrected.
+    0. Use watchwaterfall.py to view the spectrogram (waterfall.npy).
+    0. Watch the spectrogram (watchwaterfall.py) to find a comfort zone which is RFI quiet, which is find out the low freqency(fcl),high frequency (fch) to be used in ft.sh and dv.sh. For example, in 16MHz band width from 34 to 50MHz, RFI is relatively low at 41-42MHz (then fcl = 41MHz, fch = 42MHz). A typical spectrogram of 4 hours centering at 42, 74 MHz with 16MHz bandwidth looks like "Low.png"(42MHz), "High.png" (74MHz) which is baseline, bandpass, RFI corrected.
     In the given example, one of RFI comfort zones is 40.6-42.2MHz and 66.6-68.1MHz.
     
-	0. Use ft.sh to produce spectrogram again with new frequency tunning you favorite (fcl, fch). In the example, the frequency bins of RFI comfort zone is 1700-2100 and high 670-1070 out of 4095(LFFT-1)
+    0. Use ft.sh to produce spectrogram again with new frequency tunning you favorite (fcl, fch). In the example, the frequency bins of RFI comfort zone is 1700-2100 and high 670-1070 out of 4095(LFFT-1)
     0. Check the file continuity again using chkspectrogram.sh, eyexam.py
     0. If there are broken frames, that can't be FFT, use interpolate.py to insert the files.    
     0. Use freqtint.py to generate the tInt(temporal resolution constant), freq1, freq2 for dv.sh.(frequency information)
-	0. Use dv.sh (change the pol =1 or 2 for low or high tunning in dv.py) to dedisperse spectrogram and generate candidates list.
-	0. After generate the candidate txt, use awk and gnuplot to do eye examine. For example: under os X usd command line:
+    0. Use dv.sh (change the pol =1 or 2 for low or high tunning in dv.py) to dedisperse spectrogram and generate candidates list.
+    0. After generate the candidate txt, use awk and gnuplot to do eye examine. For example: under os X usd command line:
     awk '{if($4<2135 || $4>2145) print $4,$3,$2-5}' "jamie.txt" > plot.txt
     to fliter out candidate with in time range 2135-2145, and save the result in order of time($4), DM($3), S/N($2) -5 into plot.txt
     then use gnuplot, afer inter the gnuplot command mode, use command
@@ -70,7 +70,7 @@ web.py or plot.py
     user's browser.
 
 watchwaterfall.py
-	Plot the spectrogram of waterfall.npy
+    Plot the spectrogram of waterfall.npy
 
 plot.py: Read in text file plot the Cordes&McLaughlin style plot on your screen.
 
@@ -78,3 +78,4 @@ For more detail please find my thesis at Virginia Tech ETD or this link
 http://hdl.handle.net/10919/70886
 
 Jr-Wei Tsai
+
