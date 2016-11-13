@@ -13,7 +13,7 @@ Pipeline:
     
 	0. Use watchwaterfall.py to view the spectrogram (waterfall.npy).
 	0. Watch the spectrogram (watchwaterfall.py) to find a comfort zone which is RFI quiet, which is find out the low freqency(fcl),high frequency (fch) to be used in ft.sh and dv.sh. For example, in 16MHz band width from 34 to 50MHz, RFI is relatively low at 41-42MHz (then fcl = 41MHz, fch = 42MHz). A typical spectrogram of 4 hours centering at 42, 74 MHz with 16MHz bandwidth looks like "Low.png"(42MHz), "High.png" (74MHz) which is baseline, bandpass, RFI corrected.
-    In the given example, the RFI comfort zone is 40.6-42.2MHz and 66.6-68.1MHz.
+    In the given example, one of RFI comfort zones is 40.6-42.2MHz and 66.6-68.1MHz.
     
 	0. Use ft.sh to produce spectrogram again with new frequency tunning you favorite (fcl, fch).
     0. Check the file continuity again using chk.sh, eyexam.py
