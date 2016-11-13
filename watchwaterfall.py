@@ -1,7 +1,3 @@
-#script of Python script to dedisperse a file, save each DM trials time series
-#Codes from Sean, modified by Jamie
-#V3, super cluster technique
-
 import sys
 import numpy as np
 import glob
@@ -9,16 +5,6 @@ import os
 import time
 import sys
 import matplotlib.pyplot as plt
-    niter   -  Number of iterations in mean/rms calculation.  default = 1.
-
-    Usage:
-    >>sn, mean, rms = Threshold(ts, *options*)
-
-    """
-    #  Calculate, robustly, the mean and rms of the time series.  Any values greater than 3sigma are left
-    #  out of the calculation.  This keeps the mean and rms free from sturation due to large deviations.
-
-    mean = np.mean(ts) 
 
 def savitzky_golay(y, window_size, order, deriv=0):
     """Smooth (and optionally differentiate) data with a Savitzky-Golay filter
@@ -142,16 +128,21 @@ for tuning in (0,1):
 for tuning in (0,1):
     sp[:,tuning,:][ np.where( ( abs(sp[:,tuning,:]) > 3.*sp[:,tuning,:].std()) )] = sp[:,tuning,:].mean()
 
+#'''
 plt.imshow(sp[:,0,:].T, cmap='Greys_r', origin = 'low', aspect = 'auto')
 plt.suptitle('Spectrogram Low Tuning', fontsize = 30)
 plt.xlabel('Time (14 sec)',fontdict={'fontsize':16})
 plt.ylabel('Frequency (4.7 kHz)',fontdict={'fontsize':14})
 plt.colorbar().set_label('std',size=18)
-plt.show()
+#plt.show()
+plt.savefig('Low')
+#'''
+plt.clf()
 
 plt.imshow(sp[:,1,:].T, cmap='Greys_r', origin = 'low', aspect = 'auto')
 plt.suptitle('Spectrogram High Tuning', fontsize = 30)
 plt.xlabel('Time (14 sec)',fontdict={'fontsize':16})
 plt.ylabel('Frequency (4.7 kHz)',fontdict={'fontsize':14})
 plt.colorbar().set_label('std',size=18)
-plt.show()
+#plt.show()
+plt.savefig('High')
