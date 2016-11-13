@@ -21,7 +21,13 @@ Pipeline:
     0. If there are broken frames, that can't be FFT, use interpolate.py to insert the files.    
     0. Use freqtint.py to generate the tInt(temporal resolution constant), freq1, freq2 for dv.sh.(frequency information)
 	0. Use dv.sh to dedisperse spectrogram and generate candidates list.
-
+    0. After generate the candidate txt, use awk and gnuplot to do eye examine. For example: under os X usd command line:
+    awk '{if($4<2135 || $4>2145) print $4,$3,$2-5}' "jamie.txt" > plot.txt
+    to fliter out candidate with in time range 2135-2145, and save the result in order of time($4), DM($3), S/N($2) -5 into plot.txt
+    then use gnuplot, afer inter the gnuplot command mode, use command
+    plot 'plot.txt' using 1:2:3 with points pt 6 ps var
+    to plot the scatter plot, x is time, y is DM trials, radius proportional to S/N. the example file of jamie.txt(2.5MB) is available in the following link
+    https://drive.google.com/file/d/0BwU6yJVYOcbXc25HQl9ZV1I2Ulk/view?usp=sharing
 
 
 ft.sh (need ft.py, dp.py,drx.py,errors.py)
