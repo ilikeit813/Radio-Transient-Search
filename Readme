@@ -16,7 +16,7 @@ Pipeline:
     In the given example, the RFI comfort zone is 40.6-42.2MHz and 66.6-68.1MHz.
     
 	0. Use ft.sh to produce spectrogram again with new frequency tunning you favorite (fcl, fch).
-    0. Check the file continuity again using chkwaterfall.sh, eyexam.py
+    0. Check the file continuity again using chk.sh, eyexam.py
 	0. Use dv.sh to dedisperse spectrogram and generate candidates list.
 
 
