@@ -17,14 +17,15 @@ def main(args):
         rank  = comm.Get_rank()
 	t0 = time.time()
 	nChunks = 3000 #the temporal shape of a file.
-	LFFT = 4096*4 #Length of the FFT.4096 is the size of a frame readed.
+	LFFT = 4096 * windownumber #Length of the FFT.4096 is the size of a frame readed.
+	windownumber = 4
 	nFramesAvg = 1*4*LFFT/4096 # the intergration time under LFFT, 4 = beampols = 2X + 2Y (high and low tunes)
 	#Low tuning frequency range
-	Lfcl = 1700*4
-	Lfch = 2100*4
+	Lfcl = 1700 * windownumber
+	Lfch = 2100 * windownumber
 	#High tuning frequency range
-	Hfcl =  670*4
-	Hfch = 1070*4
+	Hfcl =  670 * windownumber
+	Hfch = 1070 * windownumber
 	
 	#for offset_i in range(4306, 4309):# one offset = nChunks*nFramesAvg skiped
 	for offset_i in range(0, 1000 ):# one offset = nChunks*nFramesAvg skiped
