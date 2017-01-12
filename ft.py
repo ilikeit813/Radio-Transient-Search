@@ -10,25 +10,28 @@ import time
 import matplotlib.pyplot as plt
 
 def main(args):
-	nodes = 4
-	pps = 6
-        totalrank = nodes*pps
-        comm  = MPI.COMM_WORLD
-        rank  = comm.Get_rank()
-	t0 = time.time()
-	nChunks = 3000 #the temporal shape of a file.
-	LFFT = 4096 * windownumber #Length of the FFT.4096 is the size of a frame readed. The mini quantized window lenght is 4096
-	windownumber = 4
-	nFramesAvg = 1*4*LFFT/4096 # the intergration time under LFFT, 4 = beampols = 2X + 2Y (high and low tunes)
+	nodes = 4 #total blades used
+	pps = 6   #process per blade
+
+	windownumber = 4 # The length of FFT = windownumber * 4096
+
 	#Low tuning frequency range
 	Lfcl = 1700 * windownumber
 	Lfch = 2100 * windownumber
 	#High tuning frequency range
 	Hfcl =  670 * windownumber
 	Hfch = 1070 * windownumber
+
+	totalrank = nodes*pps
+        comm  = MPI.COMM_WORLD
+        rank  = comm.Get_rank()
+	t0 = time.time()
+	nChunks = 3000 #the temporal shape of a file.
+	LFFT = 4096 * windownumber #Length of the FFT. 4096 is the size of a frame readed. The mini quantized window lenght is 4096
+	nFramesAvg = 1*4* windownumber # the intergration time under LFFT, 4 = beampols = 2X + 2Y (high and low tunes)
 	
 	#for offset_i in range(4306, 4309):# one offset = nChunks*nFramesAvg skiped
-	for offset_i in range(0, 1000 ):# one offset = nChunks*nFramesAvg skiped
+	for offset_i in range(0, 1000 ):# one offset = nChunks*nFramesAvg*worker_rank skiped
                 offset_i = 1.*totalrank*offset_i + rank
 		offset = nChunks*nFramesAvg*offset_i
 		# Build the DRX file
