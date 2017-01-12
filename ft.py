@@ -17,7 +17,7 @@ def main(args):
         rank  = comm.Get_rank()
 	t0 = time.time()
 	nChunks = 3000 #the temporal shape of a file.
-	LFFT = 4096 * windownumber #Length of the FFT.4096 is the size of a frame readed.
+	LFFT = 4096 * windownumber #Length of the FFT.4096 is the size of a frame readed. The mini quantized window lenght is 4096
 	windownumber = 4
 	nFramesAvg = 1*4*LFFT/4096 # the intergration time under LFFT, 4 = beampols = 2X + 2Y (high and low tunes)
 	#Low tuning frequency range
