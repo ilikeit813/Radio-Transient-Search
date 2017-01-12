@@ -5,15 +5,19 @@ import getopt
 import drx
 
 def main(args):
-	nChunks = 3000 #the temporal shape of a file.
-	LFFT = 4096*4 #Length of the FFT.4096 is the size of a frame readed.
-	nFramesAvg = 1*4*LFFT/4096 # the intergration time under LFFT, 4 = beampols = 2X + 2Y (high and low tunes)
+	windownumber = 4
+
 	#Low tuning frequency range
-	Lfcl = 1700*4
-	Lfch = 2100*4
+	Lfcl = 2700 * windownumber
+	Lfch = 2800 * windownumber
 	#High tuning frequency range
-	Hfcl =  670*4
-	Hfch = 1070*4
+	Hfcl = 1500 * windownumber
+	Hfch = 1600 * windownumber
+
+	nChunks = 3000 #the temporal shape of a file.
+	LFFT = 4096 * windownumber #Length of the FFT.4096 is the size of a frame readed.
+	nFramesAvg = 1 * 4 * windownumber # the intergration time under LFFT, 4 = beampols = 2X + 2Y (high and low tunes)
+
 	#for offset_i in range(4306, 4309):# one offset = nChunks*nFramesAvg skiped
 	for offset_i in range(0, 1):# one offset = nChunks*nFramesAvg skiped
 		offset = 0
