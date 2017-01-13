@@ -16,17 +16,22 @@ def dispersion_lag_second(DM, nuLowMHz, nuHighMHz):
     return DM*4.148808*10**3*((1./nuLowMHz)**2-(1./nuHighMHz)**2)
 
 def dDMi(DMtrial = 1., nuCenteralMHz = 2., channelMHz = 0.1, BMHz = 1., SSratio = 0.95, temporal_resol = 0.00021):
-    dDM = 0.0001
+    dDM = 0.1
     w_sec = dispersion_lag_second(DM = DMtrial, nuLowMHz = nuCenteralMHz - 0*BMHz/2 - channelMHz/2, nuHighMHz =  nuCenteralMHz - 0*BMHz/2 + channelMHz/2)
     if w_sec<temporal_resol: w_sec = temporal_resol
     k = kersci(deltaDM = 1.*dDM, BandwidthMHz = 1.*BMHz, width_ms = 1.*w_sec*1000, nuGHz = 1.*nuCenteralMHz/1000)
     #print 'Hi, is ',np.abs(S_delatDM_vs_S_ratio(k) - SSratio),"< 0.001 ?"
+    counter = 0
     while S_delatDM_vs_S_ratio(k) - SSratio > 0.000001:
         if DMtrial == 0:
-            dDM += 0.1
+            return 0.1
         elif DMtrial < 100 : dDM = 0.1
-        else: dDM = 0.001*DMtrial
+        else: dDM = 0.0001*DMtrial
         w_sec = dispersion_lag_second(DM = DMtrial, nuLowMHz = nuCenteralMHz - 0*BMHz/2 - channelMHz/2, nuHighMHz =  nuCenteralMHz - 0*BMHz/2 + channelMHz/2)
         if w_sec<temporal_resol: w_sec = temporal_resol
         k = kersci(deltaDM = 1.*dDM, BandwidthMHz = 1.*BMHz, width_ms = 1.*w_sec*1000, nuGHz = 1.*nuCenteralMHz/1000)
-    return(dDM)
+        counter += 1
+        if counter > 100: break
+    if dDM < 0.1:
+        return 0.1
+    else: return dDM
