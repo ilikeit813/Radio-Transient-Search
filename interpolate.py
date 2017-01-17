@@ -15,5 +15,5 @@ k = numpy.setdiff1d(x, j)
 for i in range(len(k)):
     a=fn[numpy.where( j == k[i]-nChunks_nFramesAvg)[0]]
     b=fn[numpy.where( j == k[i]+nChunks_nFramesAvg)[0]]
-    newfn = fn[0][0:30]+'%s' % int(k[i]) +fn[0][39:]
+    newfn = fn[0][0:30]+'%.9i' % int(k[i]) +fn[0][39:]
     numpy.save(newfn,numpy.load(a)*.5+numpy.load(b)*.5)
