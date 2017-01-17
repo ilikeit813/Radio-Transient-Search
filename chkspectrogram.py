@@ -10,22 +10,25 @@ import time
 import matplotlib.pyplot as plt
 import glob
 def main(args):
+
+	windownumber = 2
 	nodes = 1
 	pps = 6
+	nChunks = 1000 #the temporal shape of a file.
+
+	#Low tuning frequency range
+	Lfcl =  360 * windownumber
+	Lfch = 3700 * windownumber
+	#High tuning frequency range
+	Hfcl =  360 * windownumber
+	Hfch = 3700 * windownumber
+
+	LFFT = 4096 * windownumber #Length of the FFT.4096 is the size of a frame readed.
+	nFramesAvg = 1*4*windownumber # the intergration time under LFFT, 4 = beampols = 2X + 2Y (high and low tunes)
         totalrank = nodes*pps
         comm  = MPI.COMM_WORLD
         rank  = comm.Get_rank()
 	t0 = time.time()
-	nChunks = 3000 #the temporal shape of a file.
-	LFFT = 4096*4 #Length of the FFT.4096 is the size of a frame readed.
-	nFramesAvg = 1*4*LFFT/4096 # the intergration time under LFFT, 4 = beampols = 2X + 2Y (high and low tunes)
-	#Low tuning frequency range
-	Lfcl = 1700*4
-	Lfch = 2100*4
-	#High tuning frequency range
-	Hfcl =  670*4
-	Hfch = 1070*4
-
 
         fn = sorted(glob.glob('05*.npy'))
         j = numpy.zeros((len(fn)))
