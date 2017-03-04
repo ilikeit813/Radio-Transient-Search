@@ -292,8 +292,6 @@ if __name__ == '__main__':
 
     fcl = 6000+7000#low frequency cut off
     fch = fcl+3343#high frequency cut off
-    bp = np.zeros((fpp, nodes*pps, fch-fcl))
-
     npws = int(np.round(np.log2(maxpw/tInt)))+1 # +1 Due to in range(y) it goes to y-1 only
 
     spect=np.load(fn[0],mmap_mode='r')
@@ -301,40 +299,9 @@ if __name__ == '__main__':
 
     #cobimed spectrogram and remove background
     for i in range(fpp):
-        spectarray[i,:,:] = np.load(fn[rank*fpp+i])
-        bp[i,rank,:]= np.median(spectarray[i,:,:], 0)
+        spectarray[i,:,:] = massagesp( np.load(fn[rank*fpp+i]), 10, 50 )
 
-    bpall=bp*0. #initiate a 4 hour blank std
-    comm.Allreduce(bp,bpall,op=MPI.SUM) #merge the 4 hour std from all processor
-
-    if rank == 0:
-        np.save('bpallp%.1i' % pol, bpall)
-
-    bp = np.median(np.median(bpall[:,:,:],0),0)
-
-    bp = savitzky_golay(bp,1510,2)
-
-    for i in range(fpp):
-        spectarray[i,:,:] /= bp
-        #spectarray[i,:,:] /= np.median(spectarray[i,:,:])
-        std[i,rank]=spectarray[i,:,:].std()
-
-    stdall=std*0. #initiate a 4 hour blank std
-    comm.Allreduce(std,stdall,op=MPI.SUM) #merge the 4 hour std from all processor
-
-    std = np.median(stdall)
-
-    if rank ==0:
-        np.save('stdall%.1i' % pol, stdall)
-
-    #'''
-    #RFI removal
-    for i in range(fpp):
-        spectarray[i] = RFI(spectarray[i],5.*std)
-        spectarray[i] /= spectarray[i].mean()
-    #'''
-
-    if  pol < 4:
+if  pol < 4:
         if pol==0:
             freq=np.load('freq1.npy')
         else: 
