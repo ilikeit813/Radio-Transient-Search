@@ -1,7 +1,3 @@
-#script of Python script to dedisperse a file, save each DM trials time series
-#Codes from Sean, modified by Jamie
-#V3, super cluster technique
-
 from mpi4py import MPI
 import disper
 import sys
@@ -11,13 +7,10 @@ import os
 import time
 import sys
 
-
 def DMs(DMstart,DMend,dDM):
     """
     Calculate the number of DMs searched between DMstart and DMend, with spacing dDM * DM.
-
     Required:
-
     DMstart   - Starting Dispersion Measure in pc cm-3
     DMend     - Ending Dispersion Measure in pc cm-3
     dDM       - DM spacing in pc cm-3
@@ -35,9 +28,7 @@ def delay2(freq, dm):
     range in Hz for a particular dispersion measure in pc cm^-3.  Return
     the dispersive delay in seconds.  Same as delay, but w.r.t to highest frequency.
     ***Used to simulate a dispersed pulse.***
-
     Required:
-
     freq - 1-D array of frequencies in MHz
     dm   - Dispersion Measure in pc cm-3
     """
@@ -56,20 +47,14 @@ def Threshold(ts, thresh, clip=3, niter=1):
     makes the time series in terms of SNR.  If a given SNR value is less than the threshold, it is 
     set to "-1".  Returns a SNR array with values less than thresh = -1, all other values = SNR.
     Also returns the mean and rms of the timeseries.
-
     Required:
-
     ts   -  input time series.
-
     Options:
-
     thresh  -  Time series signal-to-noise ratio threshold.  default = 5.
     clip    -  Clipping SNR threshold for values to leave out of a mean/rms calculation.  default = 3.
     niter   -  Number of iterations in mean/rms calculation.  default = 1.
-
     Usage:
     >>sn, mean, rms = Threshold(ts, *options*)
-
     """
     #  Calculate, robustly, the mean and rms of the time series.  Any values greater than 3sigma are left
     #  out of the calculation.  This keeps the mean and rms free from sturation due to large deviations.
@@ -97,11 +82,9 @@ def Decimate_ts(ts, ndown=2):
     from Ian's Python Code (http://www.astro.ucla.edu/~ianc/python/index.html)
     
     Optimized for time series' with length = multiple of 2.  Will handle others, though.
-
     Required:
     
     ts  -  input time series
-
     Options:
     
     ndown  -  Factor by which to decimate time series. Default = 2.
@@ -139,14 +122,11 @@ class OutputSource():
 
 def savitzky_golay(y, window_size, order, deriv=0):
     """Smooth (and optionally differentiate) data with a Savitzky-Golay filter
-
     This implementation is based on [1]_.
-
     The Savitzky-Golay filter removes high frequency noise from data.
     It has the advantage of preserving the original shape and
     features of the signal better than other types of filtering
     approaches, such as moving averages techhniques.
-
     Parameters
     ----------
     y : array_like, shape (N,)
@@ -159,12 +139,10 @@ def savitzky_golay(y, window_size, order, deriv=0):
     deriv: int
         the order of the derivative to compute
         (default = 0 means only smoothing)
-
     Returns
     -------
     y_smooth : ndarray, shape (N)
         the smoothed signal (or it's n-th derivative).
-
     Notes
     -----
     The Savitzky-Golay is a type of low-pass filter, particularly
@@ -172,7 +150,6 @@ def savitzky_golay(y, window_size, order, deriv=0):
     approach is to make for each point a least-square fit with a
     polynomial of high order over a odd-sized window centered at
     the point.
-
     Examples
     --------
     >>> t = np.linspace(-4, 4, 500)
@@ -182,7 +159,6 @@ def savitzky_golay(y, window_size, order, deriv=0):
     >>> y_smooth = savitzky_golay(y, window_size=31, order=4)
     >>> print np.rms(y_noisy - y)
     >>> print np.rms(y_smooth - y)
-
     References
     ----------
     .. [1] http://www.scipy.org/Cookbook/SavitzkyGolay
@@ -271,61 +247,70 @@ def massagesp(spectrometer, windows_x=43,windows_y=100):
     return spectrometer
 
 if __name__ == '__main__':
+    fcl = 360/4
+    fch = 3700/4
     comm  = MPI.COMM_WORLD
     rank  = comm.Get_rank()
-    fpp   =  44 #spectrogram per processer you want, limited mainly by 64GB memory per node
+    fpp   =  264/12 #spectrogram per processer you want, limited mainly by 64GB memory per node (32GB Hokieone)
     nodes =  2 #the number of node requensted in sh
-    pps   =  16 #processer per node requensted in sh
+    pps   =  6 #processer per node requensted in sh
     numberofFiles=fpp*nodes*pps #totalnumberofspec = 6895.
 
-    maxpw = 10 #Maximum pulse width to search in seconds. default = 1 s.
+    maxpw = 600 #Maximum pulse width to search in seconds. default = 1 s.
     thresh= 5.0 #SNR cut off
 
     fn   = sorted(glob.glob('05*.npy')) 
     tInt = np.load('tInt.npy')
-    std = np.zeros((fpp, nodes*pps))
 
-    pol = 1 # 0 = lower tunning, 1 = higher tunning.
+    pol = 1  # 0 = lower tunning, 1 = higher tunning.
 
-    DMstart= 1000. #1.0 #initial DM trial
-    DMend  = 5000. #90.0 #finial  DM trial
-
-    fcl = 6000+7000#low frequency cut off
-    fch = fcl+3343#high frequency cut off
+    DMstart =  0 #1.0 #initial DM trial
+    DMend   =  5000 #90.0 #finial  DM trial
     npws = int(np.round(np.log2(maxpw/tInt)))+1 # +1 Due to in range(y) it goes to y-1 only
 
-    spect=np.load(fn[0],mmap_mode='r')
-    spectarray = np.zeros((fpp,spect.shape[0],spect.shape[1])) # X and Y are merged already after bandpass
+    spect=np.load(fn[0],mmap_mode='r')[:,:,fcl:fch]
+    spectarray = np.zeros((fpp,spect.shape[0],spect.shape[2])) # X and Y are merged already after bandpass
 
     #cobimed spectrogram and remove background
     for i in range(fpp):
-        spectarray[i,:,:] = massagesp( np.load(fn[rank*fpp+i]), 10, 50 )
+        print '1',(np.load(fn[rank*fpp+i])[:,pol,fcl:fch]).shape
+        print '2',massagesp( np.load(fn[rank*fpp+i])[:,pol,fcl:fch] ).shape
+        spectarray[i,:,:] = massagesp( np.load(fn[rank*fpp+i])[:,pol,fcl:fch], 10, 50 )
 
-if  pol < 4:
+    np.save('spectarray%.2i' % rank, spectarray)
+    #sys.exit()
+
+    if  pol < 4:
         if pol==0:
-            freq=np.load('freq1.npy')
+            freq=np.load('freq1.npy')[fcl:fch]
         else: 
-            freq=np.load('freq2.npy')
+            freq=np.load('freq2.npy')[fcl:fch]
         freq /= 10**6
         cent_freq = np.median(freq)
         BW   = freq.max()-freq.min()
-        DM=DMstart
+        DM = DMstart
     
         txtsize=np.zeros((npws,2),dtype=np.int32) #fileno = txtsize[ranki,0], pulse number = txtsize[ranki,1],ranki is the decimated order of 2
         txtsize[:,0]=1 #fileno star from 1
 
-        tbmax=0 #repeat control, if dedispersion time series are identical, skip dedispersion calculation
-        while DM < DMend:
-            #if DM >=1000.: dDM = 1.
-            #else: dDM = 0.1
-            dDM = disper.dDMi(DMtrial = 1.*DM, nuCenteralMHz = 1.*cent_freq, channelMHz = freq[1]-freq[0], BMHz = freq[-1]-freq[0], SSratio = 0.8, temporal_resol = 1.*tInt)
+
+        DMtrials = DMstart # 0
+        if rank == 0:
+            while DM < DMend:
+                #dDM = disper.dDMi(DMtrial = 1.*DM, nuCenteralMHz = 1.*cent_freq, channelMHz = freq[1]-freq[0], BMHz = freq[-1]-freq[0], SSratio = 0.8, temporal_resol = 1.*tInt)
+                #print dDM
+                if DM < 1000:
+                    dDM = 0.1
+		elif DM >= 1000:
+                    dDM = 1.
+                DM += dDM
+                DMtrials = np.append(DMtrials,DM)
+
+        DMtrials = comm.bcast(DMtrials,root =0)
+
+        for DM in DMtrials:
+            #print 'rank = ',rank, ' DM trial = ',DM
             tb=np.round((delay2(freq,DM)/tInt)).astype(np.int32)
-            if tb.max()-tbmax==0:#identical dedispersion time series checker
-                tbmax=tb.max()
-                if DM > 0.:
-                    DM+=dDM
-                continue
-            tbmax=tb.max()
 
             ts=np.zeros((tb.max()+numberofFiles*np.load(fn[0],mmap_mode='r').shape[0]))
             for freqbin in range(len(freq)): 
@@ -340,9 +325,10 @@ if  pol < 4:
             '''
             # save the time series around the Pulsar's DM
             if rank == 0:
-                if np.abs(DM - 9.1950) <= dDM:
+                if np.abs(DM - 10.922) <= dDM:
                     print 'DM=',DM
                     np.save('ts_pol%.1i_DMx100_%.6i' % (pol,DM*100),tstotal)
+            sys.exit()
             '''
 
             #"""#search for signal with decimated timeseries
@@ -371,7 +357,3 @@ if  pol < 4:
                         txtsize[ranki,0]+=1
                         filename = "ppc_SNR_pol_%.1i_td_%.2i_no_%.05d.txt" % (pol,ranki,txtsize[ranki,0])
                         outfile = open(filename,'a')
-
-            DM+=dDM # End of DM loop
-
-
