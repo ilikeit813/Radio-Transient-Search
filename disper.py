@@ -1,7 +1,14 @@
+"""
+Calculate the DM error of Signal noise ratio 
+"""
+
 import numpy as np
 import math
 import sys
-
+import math
+import re
+import matplotlib.pyplot as plt
+from scipy.optimize import fsolve
 
 #Searches for radio transient equation (13) by Cordes&Mclaughflin
 def kersci(deltaDM = 1., BandwidthMHz = 1., width_ms = 1., nuGHz = 1.):
@@ -15,34 +22,49 @@ def S_delatDM_vs_S_ratio(kersci):
 def dispersion_lag_second(DM, nuLowMHz, nuHighMHz):
     return DM*4.148808*10**3*((1./nuLowMHz)**2-(1./nuHighMHz)**2)
 
-def dDMi(DMtrial = 1., nuCenteralMHz = 2., channelMHz = 0.1, BMHz = 1., SSratio = 0.95, temporal_resol = 0.00021, pulsewidth = 0.01):
-    dDM = 0.001
-    w_sec = dispersion_lag_second(DM = DMtrial, nuLowMHz = nuCenteralMHz - 0*BMHz/2 - channelMHz/2, nuHighMHz =  nuCenteralMHz - 0*BMHz/2 + channelMHz/2)
-    w_sec = np.array([pulsewidth, temporal_resol, w_sec]).max()
-    print 'Un-de-dispersed-able width', w_sec, 'sec', '(temporal resol. =', temporal_resol, 'sec)'
-    k = kersci(deltaDM = 1.*dDM, BandwidthMHz = 1.*BMHz, width_ms = 1.*w_sec*1000, nuGHz = 1.*nuCenteralMHz/1000)
-    counter = 0
-    if S_delatDM_vs_S_ratio(k) <= SSratio: return dDM
-    while S_delatDM_vs_S_ratio(k) > SSratio: # > 0.01*SSratio:
-        dDM += 0.001
-        k = kersci(deltaDM = 1.*dDM, BandwidthMHz = 1.*BMHz, width_ms = 1.*w_sec*1000, nuGHz = 1.*nuCenteralMHz/1000)
-        counter += 1
-        if counter>10000:
-            break
-    return(dDM)
+#return S/S ratio
+def snrratio(dDM, W_ms, freq_centeral_GHz, Bandwidth_MHz):
+    k = kersci(dDM, Bandwidth_MHz, W_ms, freq_centeral_GHz)
+    return np.sqrt(np.pi)/2./k*math.erf(k)
+
+#return dDM
+def dDMi(ssratio, W_ms, freq_centeral_GHz, Bandwidth_MHz):
+    dDM = 1000.
+    while snrratio(dDM, W_ms, freq_centeral_GHz, Bandwidth_MHz)<ssratio:
+        dDM -= 0.001
+        if dDM<0.001:return dDM
+    return dDM
+    
 
 def main(args):
+    dDM               = 30. 
     ssratio         = 0.5
-    pulse_width     = 0.089328385024/512*40
-    DM              = 69.                   #pc/cc
-    centeralfreq    = 835.5957031           #MHz
-    bandwidth       = 31.25                 #MHz
-    tInt            = 0.0003276798693344222 #sec
-    numberOfchannel = 320.                  #bins
-    print "pulse width = ", pulse_width, "sec"
-    print 'channel width', 1.*bandwidth/numberOfchannel*1000, 'kHz'
-    ddm = dDMi(1.*DM, 1.*centeralfreq, 1.*bandwidth/numberOfchannel, 1.*bandwidth, 1.*ssratio, 1.*tInt, 1.*pulse_width)
-    print 'DM error = ',ddm, 'pc/cc, S/R ratio =', ssratio
+    pulse_width_sec = 0.089328385024/512*40
+    DM              = 690                   #pc/cc
+    centeralfreq_MHz= 835.5957031           
+    bandwidth_MHz   = 31.25
+
+    W_ms              = 1.* pulse_width_sec*1000
+    freq_centeral_GHz = 1.* centeralfreq_MHz/1000
+    Bandwidth_MHz     = 1.* bandwidth_MHz
+    print "pulse width       =", '%.2f' %W_ms, "ms"
+    print "freq_centeral_GHz =",'%.2f' % freq_centeral_GHz, 'GHz'
+    print "Bandwidth_MHz    =", '%.2f' % Bandwidth_MHz, 'MHz'
+    print 'S(error)/S', snrratio(dDM, W_ms, freq_centeral_GHz, Bandwidth_MHz)
+
+    ssratio         = snrratio(dDM, W_ms, freq_centeral_GHz, Bandwidth_MHz)
+
+    print 'dDM =', dDMi(ssratio, W_ms, freq_centeral_GHz, Bandwidth_MHz), 'S(error)/S', ssratio
+
+    sys.exit()
+    print snrratio(dDM, 1, 1, 1)
+    dDM = np.arange(-2300,2300,1.1)
+    sso = []
+    for i in dDM:
+        sso.append(snrratio(i, 1., 1., 1.))
+
+    plt.plot(dDM, sso)
+    plt.show()
 
 if __name__ == '__main__':
     main(sys.argv[1:])
