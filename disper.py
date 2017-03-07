@@ -35,7 +35,7 @@ def snrratio(dDM, W_ms, freq_centeral_GHz, Bandwidth_MHz):
 #return dDM
 def dDMi(ssratio, W_ms, freq_centeral_GHz, Bandwidth_MHz):
     #dDM = 1000.
-    for dDM in (0.1, 1, 10, 100, 1000):
+    for dDM in (0.01, 0.1, 1, 10, 100, 1000):
         #print dDM, snrratio(dDM, W_ms, freq_centeral_GHz, Bandwidth_MHz), '1', ssratio , '2'
         if snrratio(dDM, W_ms, freq_centeral_GHz, Bandwidth_MHz) > ssratio: continue
         else:
@@ -56,10 +56,11 @@ def cal_dDMi(ssratio, DM, W_ms, freq_centeral_GHz, Bandwidth_MHz, channels, tInt
     #print  '\n', 'un_disperse_able_width_ms', w_ms#, 10.**3*dispersion_t_sec(DM, freq_centeral_GHz*10**3-0.5*Bandwidth_MHz, freq_centeral_GHz*10**3-0.
     return dDMi(ssratio, w_ms, freq_centeral_GHz, Bandwidth_MHz)
 
+
 def main(args):
 
-    ssratio         = 0.5
-    DM              = 69.6937 #826.421
+    ssratio         = 0.8
+    DM              = 271#69.6937 #826.421
     dDM             = 33.043#869.705-862.421
     pulse_width_sec = 0.089328385024/512*40
 
@@ -67,7 +68,7 @@ def main(args):
     Bandwidth_MHz   = 31.25
     channels        = 320.
     tInt_sec        = 0.0003276796875
-    #pulse_width_sec = tInt_sec
+    pulse_width_sec = tInt_sec
 
     W_ms              = 1.* pulse_width_sec*1000
     freq_centeral_GHz = 1.* centeralfreq_MHz/1000
@@ -81,20 +82,34 @@ def main(args):
 
 
     """
-    ssratio = snrratio(DM, W_ms, freq_centeral_GHz, Bandwidth_MHz)
+    #ssratio = snrratio(DM, W_ms, freq_centeral_GHz, Bandwidth_MHz)
 
-    print dDMi(ssratio, W_ms, freq_centeral_GHz, Bandwidth_MHz), 'S(error)/S', ssratio
+    #print dDMi(ssratio, W_ms, freq_centeral_GHz, Bandwidth_MHz), 'S(error)/S', ssratio
 
-    sys.exit()
+    #sys.exit()
     #print snrratio(dDM, 1, 1, 1)
-    dDM = np.arange(-2300,2300,1.1)
+
+    dDM = np.arange(-50,50,1.01)
     sso = []
     for i in dDM:
-        sso.append(snrratio(i, 1., 1., 1.))
-
+        #sso.append(snrratio(i, 1., 1., 1.))
+        sso.append( cal_snrratio(DM, i, W_ms, freq_centeral_GHz, Bandwidth_MHz, channels, tInt_sec) )
     plt.plot(dDM, sso)
-    plt.show()
     """
+
+    sso=0.5
+    DMtrial = 1.
+    DM =[]
+    for i in range(300):
+        dDM = cal_dDMi(sso, DMtrial, W_ms, freq_centeral_GHz, Bandwidth_MHz, channels, tInt_sec)
+        DM.append(DMtrial +  dDM)
+        DMtrial += dDM
+    plt.plot(np.arange(i+1), DM)
+    plt.xlabel('DM trial index')
+    plt.ylabel(r'DM (pc cm$^{-3}$)')
+
+    plt.show()
+    #"""
 
 if __name__ == '__main__':
     main(sys.argv[1:])
