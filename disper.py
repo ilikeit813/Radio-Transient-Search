@@ -81,7 +81,7 @@ def main(args):
     print 'dDM =', cal_dDMi(ssratio, DM, W_ms, freq_centeral_GHz, Bandwidth_MHz, channels, tInt_sec)
 
 
-    """
+    #"""
     #ssratio = snrratio(DM, W_ms, freq_centeral_GHz, Bandwidth_MHz)
 
     #print dDMi(ssratio, W_ms, freq_centeral_GHz, Bandwidth_MHz), 'S(error)/S', ssratio
@@ -89,12 +89,13 @@ def main(args):
     #sys.exit()
     #print snrratio(dDM, 1, 1, 1)
 
-    dDM = np.arange(-50,50,1.01)
+    dDM = np.arange(-3000,3000,1.01)
     sso = []
     for i in dDM:
-        #sso.append(snrratio(i, 1., 1., 1.))
-        sso.append( cal_snrratio(DM, i, W_ms, freq_centeral_GHz, Bandwidth_MHz, channels, tInt_sec) )
+        sso.append(snrratio(i, 1., 1., 1.))
+        #sso.append( cal_snrratio(DM, i, W_ms, freq_centeral_GHz, Bandwidth_MHz, channels, tInt_sec) )
     plt.plot(dDM, sso)
+
     """
 
     sso=0.5
@@ -108,8 +109,8 @@ def main(args):
     plt.xlabel('DM trial index')
     plt.ylabel(r'DM (pc cm$^{-3}$)')
 
+    """
     plt.show()
-    #"""
 
 if __name__ == '__main__':
     main(sys.argv[1:])
