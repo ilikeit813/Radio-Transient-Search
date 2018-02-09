@@ -21,15 +21,13 @@ module reset
 #module swap openmpi
 #module swap mvapich2 openmpi
 module load mkl python openmpi
+NUM_PROCS=1
 
+DATA_DIR="/data/network/recent_data/jtsai"
+DATA_FILENAME="057974_001488582"
+DATA_PATH="${DATA_DIR}/${DATA_FILENAME}"
 
-cd /work/hokieone/ilikeit/057139_000656029
-cp /home/ilikeit/hokieone/waterfall.py .
-cp /home/ilikeit/hokieone/errors.py .
-cp /home/ilikeit/hokieone/drx.py .
-cp /home/ilikeit/hokieone/dp.py .
-
-mpirun -np $PBS_NP python waterfall.py 057139_000656029
+mpirun -np ${NUM_PROCS} python waterfall.py "${DATA_FILE}"
 
 echo "done"
 exit;
