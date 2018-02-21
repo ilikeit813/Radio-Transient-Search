@@ -27,7 +27,7 @@ DATA_DIR="/data/network/recent_data/jtsai"
 DATA_FILENAME="057974_001488582"
 DATA_PATH="${DATA_DIR}/${DATA_FILENAME}"
 
-mpirun -np ${NUM_PROCS} python waterfall.py "${DATA_FILE}"
+mpirun -np ${NUM_PROCS} python waterfall.py "${DATA_PATH}"
 
 echo "done"
 exit;
