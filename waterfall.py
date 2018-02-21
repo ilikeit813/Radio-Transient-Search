@@ -58,8 +58,9 @@ def main(args):
          # integrity as it required either copying (extremely large) data files into the run directory
          # or running in the original data directory, dumping files that probably shouldn't be there.
          # The change here is to extract the base filename (no extension or directory path) from the
-         # original input filepath.  This base filename will be used later for constructing the filename
-         # for the output file.
+         # original input filepath---the base filename is used later for constructing the filename
+         # for the output file.  This allows specifying a full path to the data file while dumping
+         # resultant files in the current working directory.
          inFilepath = getopt.getopt(args,':')[1][0]
          inFilename = os.path.basename(os.path.splitext(inFilepath)[0])
          inFile = open(inFilepath, "rb")
