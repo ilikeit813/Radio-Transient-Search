@@ -31,7 +31,7 @@ cp /home/ilikeit/hokieone/errors.py .
 cp /home/ilikeit/hokieone/drx.py .
 cp /home/ilikeit/hokieone/dp.py .
 
-mpirun -np $PBS_NP python ft.py 057139_000656029
+mpirun -np $PBS_NP python OPT-INSTALL_DIR/ft.py 057139_000656029
 
 echo "done"
 exit;

@@ -1,4 +1,7 @@
 #!/bin/bash
+# CCY - Added OPT-INSTALL_DIR as a template variable that is replaced by my git-export.sh script with
+# the path to which the package is installed.
+#
 #PBS -l walltime=24:00:00
 #PBS -l nodes=2:ppn=6
 #PBS -W group_list=hokieone
@@ -27,7 +30,7 @@ DATA_DIR="/data/network/recent_data/jtsai"
 DATA_FILENAME="057974_001488582"
 DATA_PATH="${DATA_DIR}/${DATA_FILENAME}"
 
-mpirun -np ${NUM_PROCS} python waterfall.py "${DATA_PATH}"
+mpirun -np ${NUM_PROCS} python OPT-INSTALL_DIR/waterfall.py "${DATA_PATH}"
 
 echo "done"
 exit;
