@@ -6,6 +6,7 @@ import glob
 import os
 import time
 import sys
+import getopt
 
 def DMs(DMstart,DMend,dDM):
     """
@@ -246,9 +247,21 @@ def massagesp(spectrometer, windows_x=43,windows_y=100):
     spectrometer -= mean
     return spectrometer
 
+
+def forceIntValue(inValue, lower, upper):
+    # Return inValue as an integer forced to be in the range from <lower> to <upper>
+    result = max([lower, inValue])
+    result = min([upper, result])
+    result = int(result)
+    return result
+# end forceIntVale()
+
+
 if __name__ == '__main__':
-    fcl = 360/4
-    fch = 3700/4
+    #fcl = 360/4
+    #fch = 3700/4
+    fcl = 0
+    fch = 4095
     comm  = MPI.COMM_WORLD
     rank  = comm.Get_rank()
     fpp   =  264/12 #spectrogram per processer you want, limited mainly by 64GB memory per node (32GB Hokieone)
@@ -259,7 +272,40 @@ if __name__ == '__main__':
     maxpw = 600 #Maximum pulse width to search in seconds. default = 1 s.
     thresh= 5.0 #SNR cut off
 
-    fn   = sorted(glob.glob('05*.npy')) 
+    # CCY - This modification allows specifying the original time series data filepath and fcl and fch
+    # parameters from the command line.  This gives more flexibility in that it allows dv.py to find any
+    # pattern of frame files and allows specifying the frequency band without having to make hard-coded
+    # modifications to dv.py.
+    #
+    szShortOpts = 'lu'
+    szLongOpts = ['lower', 'upper']
+    filepath = getopt.getopt(sys.argv[1:], szShortOpts, szLongOpts)[1][0]
+    # Make sure that a path to the original data file has been provided.
+    if len(filepath) == 0:
+        print('Path to the original data file must be provided')
+        exit(1)
+    # end if
+    filename = os.path.basename(os.path.splitext(filepath)[0])
+    (cmdLnOpts, cmdLnParams) = getopt.getopt(sys.argv[1:], szShortOpts, szLongOpts)[0]
+    for index in range(len(cmdLnOpts)):
+        if cmdLnOpts[index] in [szShortOpts[0], szLongOpts[0]]:
+            # Set the lower FFT index to the specified value and force it to be a non-negative integer
+            # less than 4096.
+            fcl = cmdLnParams[index]
+            fcl = forceIntValue(fcl, 0, 4095)
+        elif cmdLnOpts[index] in [szShortOpts[1], szLongOpts[1]]:
+            # Set the upper FFT index to the specified value and force it to be a non-negative integer
+            # less than 4096.
+            fch = cmdLnParams[index]
+            fch = forceIntValue(fch, 0, 4095)
+        else
+            print('UNKNOWN OPTION: {opt}'.format(opt=cmdLnOpts[index]))
+            exit(1)
+        # end if
+    # end for index in range(len(cmdLnOpts))
+
+
+    fn   = sorted(glob.glob('{filename}*.npy'.format(filename=filename)) 
     tInt = np.load('tInt.npy')
 
     pol = 1  # 0 = lower tunning, 1 = higher tunning.
@@ -301,7 +347,7 @@ if __name__ == '__main__':
                 #print dDM
                 if DM < 1000:
                     dDM = 0.1
-		elif DM >= 1000:
+      elif DM >= 1000:
                     dDM = 1.
                 DM += dDM
                 DMtrials = np.append(DMtrials,DM)

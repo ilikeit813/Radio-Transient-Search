@@ -172,9 +172,9 @@ def main(args):
          #sys.exit()
          #if i % 100 ==1 :
          #  print i, ' / ', nChunks
-         outname = "%s_%i_fft_offset_%.9i_frames" % (inFilename, beam, offset)
       # end for i in xrange(nChunks)
       #
+      outname = "%s_%i_fft_offset_%.9i_frames" % (inFilename, beam, offset)
       numpy.save('waterfall' + outname, masterSpectra.mean(0) )
    #print time.time()-t0
    #print masterSpectra.shape

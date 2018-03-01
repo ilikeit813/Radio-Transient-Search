@@ -6,9 +6,9 @@
 
 USAGE='
    
-   ft.sh [ --help | -h ] <data_path>
+   dv.sh [ --help | -h ] <data_path>
 
-   Script to call ft.py that generates new frame files from the time series file specified by
+   Script to call dv.py that generates new frame files from the time series file specified by
    <data_path>, similarly to waterfall.py, except the frame files have a spectrum confined to a
    specified frequency range.
 
@@ -59,15 +59,15 @@ do
          exit 1
       *) # Use the first non-option flag as the data path.
          DATA_PATH="$1"
-         shift
+         shidv
          ;;
    esac
 done
 
 
 if [ -n "${DATA_PATH}" ]; then
-   echo "running ft.py with DATA_PATH=${DATA_PATH}"
-   mpirun -np ${NUM_PROCS} python OPT-INSTALL_DIR/ft.py "${DATA_PATH}"
+   echo "running dv.py with DATA_PATH=${DATA_PATH}"
+   mpirun -np ${NUM_PROCS} python OPT-INSTALL_DIR/dv.py "${DATA_PATH}"
    echo "done"
 else
    echo "No data path specified"
