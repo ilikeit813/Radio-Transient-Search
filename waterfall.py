@@ -62,6 +62,10 @@ def main(args):
          # for the output file.  This allows specifying a full path to the data file while dumping
          # resultant files in the current working directory.
          inFilepath = getopt.getopt(args,':')[1][0]
+         if len(inFilepath) == 0:
+            print('Path to the original data file must be provided')
+            exit(1)
+         # end if
          inFilename = os.path.basename(os.path.splitext(inFilepath)[0])
          inFile = open(inFilepath, "rb")
          nFramesFile = os.path.getsize(inFilepath) / drx.FrameSize #drx.FrameSize = 4128

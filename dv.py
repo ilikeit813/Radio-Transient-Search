@@ -7,6 +7,7 @@ import os
 import time
 import sys
 import getopt
+from apputils import forceIntValue
 
 def DMs(DMstart,DMend,dDM):
     """
@@ -248,14 +249,6 @@ def massagesp(spectrometer, windows_x=43,windows_y=100):
     return spectrometer
 
 
-def forceIntValue(inValue, lower, upper):
-    # Return inValue as an integer forced to be in the range from <lower> to <upper>
-    result = max([lower, inValue])
-    result = min([upper, result])
-    result = int(result)
-    return result
-# end forceIntVale()
-
 
 if __name__ == '__main__':
     #fcl = 360/4
@@ -288,16 +281,11 @@ if __name__ == '__main__':
     filename = os.path.basename(os.path.splitext(filepath)[0])
     (cmdLnOpts, cmdLnParams) = getopt.getopt(sys.argv[1:], szShortOpts, szLongOpts)[0]
     for index in range(len(cmdLnOpts)):
+        # Set the specified FFT index and force it to be a non-negative integer less than 4096.
         if cmdLnOpts[index] in [szShortOpts[0], szLongOpts[0]]:
-            # Set the lower FFT index to the specified value and force it to be a non-negative integer
-            # less than 4096.
-            fcl = cmdLnParams[index]
-            fcl = forceIntValue(fcl, 0, 4095)
+            fcl = forceIntValue(cmdLnParams[index], 0, 4095)
         elif cmdLnOpts[index] in [szShortOpts[1], szLongOpts[1]]:
-            # Set the upper FFT index to the specified value and force it to be a non-negative integer
-            # less than 4096.
-            fch = cmdLnParams[index]
-            fch = forceIntValue(fch, 0, 4095)
+            fch = forceIntValue(cmdLnParams[index], 0, 4095)
         else
             print('UNKNOWN OPTION: {opt}'.format(opt=cmdLnOpts[index]))
             exit(1)

@@ -50,7 +50,18 @@ def main(args):
    LFFT = 4096 #Length of the FFT.4096 is the size of a frame readed.
    nFramesAvg = 1*4*LFFT/4096 # the intergration time under LFFT, 4 = beampols = 2X + 2Y (high and low tunes)
 
-   fn = sorted(glob.glob('waterfall05*.npy'))
+   # CCY - This modification allows specifying the original time series data file path on the command-line.
+   # This is to avoid having to hard-code the pattern of files used by eyexam.py.  This will also allow
+   # eyexam.py to be scriptable within a workflow.
+   #
+   filepath = getopt.getopt(sys.argv[1:], szShortOpts, szLongOpts)[1][0]
+   # Make sure that a path to the original data file has been provided.
+   if len(filepath) == 0:
+      print('Path to the original data file must be provided')
+      exit(1)
+   # end if
+   filename = os.path.basename(os.path.splitext(filepath)[0])
+   fn = sorted(glob.glob('waterfall{filename}*.npy'.format(filename=filename)))
    j = numpy.zeros((len(fn)))
    for i in range(len(fn)):
       j[i] = fn[i][39:48]
