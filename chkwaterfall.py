@@ -40,11 +40,11 @@ def Decimate_ts(ts, ndown=2):
 
 
 def main(args):
-        totalrank = 12
+   totalrank = 12
    nodes = 2
    pps = 6
-        comm  = MPI.COMM_WORLD
-        rank  = comm.Get_rank()
+   comm  = MPI.COMM_WORLD
+   rank  = comm.Get_rank()
    t0 = time.time()
    nChunks = 10000 #the temporal shape of a file.
    LFFT = 4096 #Length of the FFT.4096 is the size of a frame readed.

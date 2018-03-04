@@ -3,6 +3,7 @@ Use this code to examine if there are missing files.
 '''
 import numpy
 import glob
+import getopt
 
 windownumber = 2
 nodes = 2
