@@ -132,20 +132,25 @@ if [ -d ".git" ]; then
    if [ "${PREFIX}" != "." ]; then
       INSTALL_DIR="${INSTALL_ROOT}/${PREFIX}"
    fi
-   echo "Replacing /home/cyancey/bin template in all *.sh scripts with ${INSTALL_DIR}..."
+   echo "Replacing OPT-INSTALL_DIR template in all *.sh scripts with ${INSTALL_DIR}..."
    for  FILEPATH in `ls ${INSTALL_DIR}/*.sh`
    do
       echo "    Replacing in ${FILEPATH}."
-      sed -i s@/home/cyancey/bin@${INSTALL_DIR}@ "${FILEPATH}"
+      sed -i s@OPT-INSTALL_DIR@${INSTALL_DIR}@ "${FILEPATH}"
    done
 
    # Remove any special .git* files, like .gitignore, from the installed export.
-   echo "Removing .git* files from installed export..."
+   # Also, remove git-export.sh from the install directory, if it was included with the repository as a
+   # utility dependency.  This is to avoid collisions on ${PATH} and other accidents.
+   echo "Removing .git* files and git-export.sh inclusion from installed export..."
+   echo "If you need git-export.sh, copy it by hand to an appropriate directory on your PATH."
    for FILENAME in `ls ${INSTALL_DIR}/.git*`
    do
       echo "    Removing ${FILENAME}."
       rm -f "${FILENAME}"
    done
+   GITEXPORT_SH=`find ${INSTALL_DIR} --name git-export.sh`
+   rm -f "${GITEXPORT_SH}"
 
 else
    echo "Not in a git repository."
