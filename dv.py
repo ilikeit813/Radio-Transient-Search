@@ -255,6 +255,7 @@ if __name__ == '__main__':
     #fch = 3700/4
     fcl = 0
     fch = 4095
+    pol = 0
     comm  = MPI.COMM_WORLD
     rank  = comm.Get_rank()
     fpp   =  264/12 #spectrogram per processer you want, limited mainly by 64GB memory per node (32GB Hokieone)
@@ -270,8 +271,8 @@ if __name__ == '__main__':
     # pattern of frame files and allows specifying the frequency band without having to make hard-coded
     # modifications to dv.py.
     #
-    szShortOpts = 'lu'
-    szLongOpts = ['lower', 'upper']
+    szShortOpts = 'lut'
+    szLongOpts = ['lower', 'upper', 'tuning']
     filepath = getopt.getopt(sys.argv[1:], szShortOpts, szLongOpts)[1][0]
     # Make sure that a path to the original data file has been provided.
     if len(filepath) == 0:
@@ -281,11 +282,22 @@ if __name__ == '__main__':
     filename = os.path.basename(os.path.splitext(filepath)[0])
     (cmdLnOpts, cmdLnParams) = getopt.getopt(sys.argv[1:], szShortOpts, szLongOpts)[0]
     for index in range(len(cmdLnOpts)):
-        # Set the specified FFT index and force it to be a non-negative integer less than 4096.
+        # Parse the command-line options.
         if cmdLnOpts[index] in [szShortOpts[0], szLongOpts[0]]:
             fcl = forceIntValue(cmdLnParams[index], 0, 4095)
         elif cmdLnOpts[index] in [szShortOpts[1], szLongOpts[1]]:
             fch = forceIntValue(cmdLnParams[index], 0, 4095)
+        elif cmdLnOpts[index] in [szShortOpts[2], szLongOpts[2]]:
+            if cmdLnParams[index] in ['low', 'high']:
+               if cmdLnParams[index] == 'low':
+                  pol = 0
+               else
+                  pol = 1
+               # end if
+            else
+               print('Allowed tuning specifications: \'low\', \'high\'')
+               exit(1)
+            # end if
         else
             print('UNKNOWN OPTION: {opt}'.format(opt=cmdLnOpts[index]))
             exit(1)
@@ -295,8 +307,6 @@ if __name__ == '__main__':
 
     fn   = sorted(glob.glob('{filename}*.npy'.format(filename=filename)) 
     tInt = np.load('tInt.npy')
-
-    pol = 1  # 0 = lower tunning, 1 = higher tunning.
 
     DMstart =  0 #1.0 #initial DM trial
     DMend   =  5000 #90.0 #finial  DM trial
@@ -335,7 +345,7 @@ if __name__ == '__main__':
                 #print dDM
                 if DM < 1000:
                     dDM = 0.1
-      elif DM >= 1000:
+                elif DM >= 1000:
                     dDM = 1.
                 DM += dDM
                 DMtrials = np.append(DMtrials,DM)
@@ -349,7 +359,8 @@ if __name__ == '__main__':
             ts=np.zeros((tb.max()+numberofFiles*np.load(fn[0],mmap_mode='r').shape[0]))
             for freqbin in range(len(freq)): 
                 for i in range(fpp):
-                    ts[tb.max()-tb[freqbin] + (rank*fpp+i)*spect.shape[0] :tb.max()-tb[freqbin] + (rank*fpp+i+1)*spect.shape[0] ] += spectarray[i,:,freqbin]
+                    ts[tb.max()-tb[freqbin] + (rank*fpp+i)*spect.shape[0] :tb.max()-tb[freqbin] + (rank*fpp+i+
+                        1)*spect.shape[0] ] += spectarray[i,:,freqbin]
 
             tstotal=ts*0#initiate a 4 hour blank time series
             comm.Allreduce(ts,tstotal,op=MPI.SUM)#merge the 4 hour timeseries from all processor
@@ -391,3 +402,8 @@ if __name__ == '__main__':
                         txtsize[ranki,0]+=1
                         filename = "ppc_SNR_pol_%.1i_td_%.2i_no_%.05d.txt" % (pol,ranki,txtsize[ranki,0])
                         outfile = open(filename,'a')
+                    # end if
+                # end for
+            # end if
+        # end for
+    # end if
