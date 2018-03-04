@@ -14,9 +14,9 @@ If <root> is not specified, then <root> defaults to "$HOME/local/".  If <prefix>
 then <prefix> defaults to the current directory name (this assumes that git-export.sh is being run from
 the repository directory, and it is appropriately name).
 
-   --install-dir | -d <root> : set the root install directory to <root>.  Default = "$HOME/local/"
+   --install-root | -r <root> : set the root install directory to <root>.  Default = "$HOME/local/"
 
-   --repos | -r <repos> : path to the repository to export.  Default = "./"
+   --repos | -p <repos> : path to the repository to export.  Default = "./"
 
    --git-tag | -t <tag> : branch or tag to export from repository.  Default = "master"
 
@@ -40,13 +40,13 @@ FLAG_NOPREFIX=0
 while [ -n "$1" ]
 do 
    case "$1" in
-      --install-dir | -d) # Set the install root directory.
+      --install-root | -r) # Set the install root directory.
          if [ -z "${INSTALL_ROOT}" ]; then
             INSTALL_ROOT="$2"
          fi
          shift; shift
          ;;
-      --repos | -r) # Specify the repository directory.
+      --repos | -p) # Specify the repository directory.
          if [ -z "${GIT_DIR}" ]; then
             GIT_DIR="$2"
          fi
@@ -143,14 +143,17 @@ if [ -d ".git" ]; then
    # Also, remove git-export.sh from the install directory, if it was included with the repository as a
    # utility dependency.  This is to avoid collisions on ${PATH} and other accidents.
    echo "Removing .git* files and git-export.sh inclusion from installed export..."
-   echo "If you need git-export.sh, copy it by hand to an appropriate directory on your PATH."
    for FILENAME in `ls ${INSTALL_DIR}/.git*`
    do
       echo "    Removing ${FILENAME}."
       rm -f "${FILENAME}"
    done
-   GITEXPORT_SH=`find ${INSTALL_DIR} --name git-export.sh`
-   rm -f "${GITEXPORT_SH}"
+   GITEXPORT_SH=`find ${INSTALL_DIR} -name git-export.sh`
+   if [ -f "${GITEXPORT_SH}" ]; then
+      echo "    Removing ${GITEXPORT_SH}."
+      echo "    If you need git-export.sh, copy it manually to an appropriate directory on your PATH."
+      rm -f "${GITEXPORT_SH}"
+   fi
 
 else
    echo "Not in a git repository."
