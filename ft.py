@@ -37,7 +37,7 @@ def main(args):
    
    #for offset_i in range(4306, 4309):# one offset = nChunks*nFramesAvg skiped
    for offset_i in range(0, 1000 ):# one offset = nChunks*nFramesAvg*worker_rank skiped
-                offset_i = 1.*totalrank*offset_i + rank
+      offset_i = 1.*totalrank*offset_i + rank
       offset = nChunks*nFramesAvg*offset_i
       # Build the DRX file
       try:
@@ -73,7 +73,7 @@ def main(args):
                  Hfcl = forceIntValue(cmdLnParams[index], 0, 4095)*windownumber
              elif cmdLnOpts[index] in [szShortOpts[3], szLongOpts[3]]:
                  Hfch = forceIntValue(cmdLnParams[index], 0, 4095)*windownumber
-             else
+             else:
                  print('UNKNOWN OPTION: {opt}'.format(opt=cmdLnOpts[index]))
                  exit(1)
              # end if

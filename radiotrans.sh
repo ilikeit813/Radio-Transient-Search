@@ -103,7 +103,7 @@ do
    read USER_ANSWER
    # Newer versions of bash have a more elegant way of converting strings to all lower or upper case,
    # however, I'm doing it this way for compatibility.
-   USER_ANSWER=$(echo "${USER_ANSER}" | tr '[:upper:]' '[:lower:]')
+   USER_ANSWER=$(echo "${USER_ANSWER}" | tr '[:upper:]' '[:lower:]')
    if [[ "${USER_ANSWER}" =~ ${AFFIRMATIVE} ]]; then
       echo "    Interpolating missing frame files..."
       mpirun -np ${NUM_PROCS} python OPT-INSTALL_DIR/interpolate.py "${DATA_PATH}"
@@ -134,9 +134,9 @@ echo "    The next phase involves adjusting the bandpass filtering for RFI.  Thi
 echo "    interactively with plots (requires X11 and X11 forwarding, if working remotely, be"
 echo "    setup), or if the user already knowns the bandpass range to use, it can be entered"
 echo "    directly (skipping any display of plots)."
-echo "    Adjust bandpass filtering interactively?[y/n] "
+echo "    Adjust bandpass filtering with plots?[y/n] "
 read USER_ANSWER
-USER_ANSWER=$(echo "${USER_ANSER}" | tr '[:upper:]' '[:lower:]')
+USER_ANSWER=$(echo "${USER_ANSWER}" | tr '[:upper:]' '[:lower:]')
 
 if [[ "${USER_ANSWER}" =~ ${AFFIRMATIVE} ]]; then 
    echo "    Plotting tuning bandpass regions for transient extraction..."
@@ -147,11 +147,11 @@ if [[ "${USER_ANSWER}" =~ ${AFFIRMATIVE} ]]; then
          --low-tuning-upper ${LOW_FCH} --high-tuning-lower ${HIGH_FCL} --high-tuning-upper ${HIGH_FCH}
       echo "    Do the bandpass regions have acceptably low RFI?[y/n]"
       read USER_ANSWER
-      USER_ANSWER=$(echo "${USER_ANSER}" | tr '[:upper:]' '[:lower:]')
+      USER_ANSWER=$(echo "${USER_ANSWER}" | tr '[:upper:]' '[:lower:]')
       if ! [[ "${USER_ANSWER}" =~ ${AFFIRMATIVE} ]]; then 
          echo "    Change low tuning bandpass?[y/n]"
          read USER_ANSWER
-         USER_ANSWER=$(echo "${USER_ANSER}" | tr '[:upper:]' '[:lower:]')
+         USER_ANSWER=$(echo "${USER_ANSWER}" | tr '[:upper:]' '[:lower:]')
          if [[ "${USER_ANSWER}" =~ ${AFFIRMATIVE} ]]; then 
             echo "    Enter the lower FFT index for the low tuning: "
             read LOW_FCL
@@ -163,7 +163,7 @@ if [[ "${USER_ANSWER}" =~ ${AFFIRMATIVE} ]]; then
          # Change bandpass for high tuning, if desired.
          echo "    Change high tuning bandpass?[y/n]"
          read USER_ANSWER
-         USER_ANSWER=$(echo "${USER_ANSER}" | tr '[:upper:]' '[:lower:]')
+         USER_ANSWER=$(echo "${USER_ANSWER}" | tr '[:upper:]' '[:lower:]')
          if [[ "${USER_ANSWER}" =~ ${AFFIRMATIVE} ]]; then 
             echo "    Enter the lower FFT index for the high tuning: "
             read HIGH_FCL
@@ -184,12 +184,12 @@ else
       echo "         High tuning upper index = ${HIGH_FCH}"
       echo "     Do you wish to change any of these?[y/n] "
       read USER_ANSWER
-      USER_ANSWER=$(echo "${USER_ANSER}" | tr '[:upper:]' '[:lower:]')
+      USER_ANSWER=$(echo "${USER_ANSWER}" | tr '[:upper:]' '[:lower:]')
       if [[ "${USER_ANSWER}" =~ ${AFFIRMATIVE} ]]; then 
          # Change bandpass for low tuning, if desired.
          echo "    Change low tuning bandpass?[y/n]"
          read USER_ANSWER
-         USER_ANSWER=$(echo "${USER_ANSER}" | tr '[:upper:]' '[:lower:]')
+         USER_ANSWER=$(echo "${USER_ANSWER}" | tr '[:upper:]' '[:lower:]')
          if [[ "${USER_ANSWER}" =~ ${AFFIRMATIVE} ]]; then 
             echo "    Enter the lower FFT index for the low tuning: "
             read LOW_FCL
@@ -200,7 +200,7 @@ else
          # Change bandpass for high tuning, if desired.
          echo "    Change high tuning bandpass?[y/n]"
          read USER_ANSWER
-         USER_ANSWER=$(echo "${USER_ANSER}" | tr '[:upper:]' '[:lower:]')
+         USER_ANSWER=$(echo "${USER_ANSWER}" | tr '[:upper:]' '[:lower:]')
          if [[ "${USER_ANSWER}" =~ ${AFFIRMATIVE} ]]; then 
             echo "    Enter the lower FFT index for the high tuning: "
             read HIGH_FCL

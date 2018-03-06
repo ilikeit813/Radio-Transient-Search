@@ -54,6 +54,8 @@ def main(args):
    # This is to avoid having to hard-code the pattern of files used by eyexam.py.  This will also allow
    # eyexam.py to be scriptable within a workflow.
    #
+   szShortOpts = ''
+   szLongOpts = ''
    filepath = getopt.getopt(sys.argv[1:], szShortOpts, szLongOpts)[1][0]
    # Make sure that a path to the original data file has been provided.
    if len(filepath) == 0:
