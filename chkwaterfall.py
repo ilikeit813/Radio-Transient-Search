@@ -144,8 +144,8 @@ def main(args):
       # Master loop over all of the file chunks
       freq = numpy.fft.fftshift(numpy.fft.fftfreq(LFFT, d = 1.0/srate))
       tInt = 1.0*LFFT/srate
-                print 'Temporal resl = ',tInt
-                print 'Channel width = ',1./tInt
+      print 'Temporal resl = ',tInt
+      print 'Channel width = ',1./tInt
       freq1 = freq+centralFreq1
       freq2 = freq+centralFreq2
       #print tInt,freq1.mean(),freq2.mean()

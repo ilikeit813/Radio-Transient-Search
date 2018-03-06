@@ -61,7 +61,7 @@ def main(args):
                  Hfcl = forceIntValue(cmdLnParams[index], 0, 4095)*windownumber
              elif cmdLnOpts[index] in [szShortOpts[3], szLongOpts[3]]:
                  Hfch = forceIntValue(cmdLnParams[index], 0, 4095)*windownumber
-             else
+             else:
                  print('UNKNOWN OPTION: {opt}'.format(opt=cmdLnOpts[index]))
                  exit(1)
              # end if

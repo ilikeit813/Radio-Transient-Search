@@ -28,8 +28,8 @@ def main(args):
    Hfch = 4095 * windownumber
 
    totalrank = nodes*pps
-        comm  = MPI.COMM_WORLD
-        rank  = comm.Get_rank()
+   comm  = MPI.COMM_WORLD
+   rank  = comm.Get_rank()
    t0 = time.time()
    nChunks = 3000 #the temporal shape of a file.
    LFFT = 4096 * windownumber #Length of the FFT. 4096 is the size of a frame readed. The mini quantized window lenght is 4096

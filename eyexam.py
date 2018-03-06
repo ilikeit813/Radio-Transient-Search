@@ -1,6 +1,8 @@
 '''
 Use this code to examine if there are missing files.
 '''
+import os
+import sys
 import numpy
 import glob
 import getopt

@@ -291,14 +291,14 @@ if __name__ == '__main__':
             if cmdLnParams[index] in ['low', 'high']:
                if cmdLnParams[index] == 'low':
                   pol = 0
-               else
+               else:
                   pol = 1
                # end if
-            else
+            else:
                print('Allowed tuning specifications: \'low\', \'high\'')
                exit(1)
             # end if
-        else
+        else:
             print('UNKNOWN OPTION: {opt}'.format(opt=cmdLnOpts[index]))
             exit(1)
         # end if
