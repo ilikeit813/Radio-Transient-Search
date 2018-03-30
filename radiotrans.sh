@@ -262,7 +262,7 @@ function resumecmd ()
    fi
 
    # Check the resume key for whether to execute the rest of resumecmd.
-   if [[ ${RESUME_KEY} -ne 0 ]]; then
+   if [[ ${RESUME_KEY} -eq 0 ]]; then
       return 0
    fi
 
@@ -540,6 +540,8 @@ NUM_PROCS=0
 echo "Starting radiotrans workflow:"
 echo "    Generating frame files from ${DATA_PATH}..."
 resumecmd -l ${LBL_WATERFALL} mpirun -np ${NUM_PROCS} python OPT-INSTALL_DIR/waterfall.py "${DATA_PATH}"
+
+exit 0
 
 # Check that all necessary frame files exist.  If there are some missing, then we'll need to interpolate
 # between existent frames to create the missing frames.  NOTE: we run chkwaterfall.py twice in the initial
