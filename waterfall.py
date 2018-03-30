@@ -49,6 +49,7 @@ def main(args):
    
    #for offset_i in range(4306, 4309):# one offset = nChunks*nFramesAvg skiped
    for offset_i in range(100, 1000 ): # one offset = nChunks*nFramesAvg skiped
+      print 'Top-level loop: offset_i = ', offset_i
       offset_i = 1.*totalrank*offset_i + rank
       offset = nChunks*nFramesAvg*offset_i
       # Build the DRX file
@@ -125,6 +126,8 @@ def main(args):
       # Master loop over all of the file chunks
       freq = numpy.fft.fftshift(numpy.fft.fftfreq(LFFT, d = 1.0/srate))
       tInt = 1.0*LFFT/srate
+      print 'offset_i = ', offset_i
+      print 'offset = ', offset
       print 'Temporal resl = ',tInt
       print 'Channel width = ',1./tInt
       freq1 = freq+centralFreq1
