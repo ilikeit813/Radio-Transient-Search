@@ -275,6 +275,13 @@ function resumecmd ()
          echo "resumecmd: Could not find or create resume file ${RESUME_CMD_FILEPATH}" >&2
          echo "resumecmd: Command executing without saved resume status => ${RESUME_CMD[*]}" >&2
          ${RESUME_CMD[*]}
+         # Capture the success/fail state of the command.
+         local CMD_RETURN=${?}
+         RESUME_LASTCMD_SUCCESS=1
+         if [[ ${CMD_RETURN} -ne 0 ]] || [[ ${FLAG_ABORTSIG} -eq 1 ]]; then
+            RESUME_LASTCMD_SUCCESS=0
+         fi
+         FLAG_ABORTSIG=0
          return 1
       fi
    fi
