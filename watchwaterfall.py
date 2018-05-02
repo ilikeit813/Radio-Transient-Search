@@ -4,7 +4,12 @@ import glob
 import os
 import time
 import sys
+from optparse import OptionParser
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
+from apputils import forceIntValue
 
 def savitzky_golay(y, window_size, order, deriv=0):
     """Smooth (and optionally differentiate) data with a Savitzky-Golay filter
@@ -101,48 +106,131 @@ def snr(a):
     return (a-a.mean() )/a.std()
 
 
-sp = np.load('waterfall.npy')
+
+# == Main routine ==
+#
+# CCY - The following modification to the command-line adds options and flexibility to bandpasscheck.py
+# to allow it to be more scriptable in the radio transient workflow.
+#
+usage="Usage: %prog [options] <waterfall file>"
+cmdlnParser = OptionParser(usage=usage)
+cmdlnParser.add_option('-a', '--low-tuning-lower',dest='lowTuneLower', default=0, type='int',
+                        action='store',
+                        help='Lower FFT index (between 0 and 4095) for the low tuning frequency.',
+                        metavar='INDEX')
+cmdlnParser.add_option('-b', '--low-tuning-upper',dest='lowTuneUpper', default=4095, type='int',
+                        action='store',
+                        help='Upper FFT index (between 0 and 4095) for the low tuning frequency.',
+                        metavar='INDEX')
+cmdlnParser.add_option('-y', '--high-tuning-lower',dest='highTuneLower', default=0, type='int',
+                        action='store',
+                        help='Lower FFT index (between 0 and 4095) for the high tuning frequency.',
+                        metavar='INDEX')
+cmdlnParser.add_option('-z', '--high-tuning-upper',dest='highTuneUpper', default=4095, type='int',
+                        action='store',
+                        help='Upper FFT index (between 0 and 4095) for the high tuning frequency.',
+                        metavar='INDEX')
+(cmdlnOpts, cmdlnArgs) = cmdlnParser.parse_args()
+# Check that a combined waterfall file has been provided and that it exists.
+if len(cmdlnArgs[0]) > 0:
+   if not os.path.exists(cmdlnArgs[0]):
+      print('Cannot find the combined waterfall file \'{path}\''.format(path=cmdlnArgs[0]))
+      exit(1)
+   # endif
+else:
+   print('A path to the combined waterfall file must be given.')
+   exit(1)
+# endif
+
+# Force the FFT index values to be between 0 and 4095.
+Lfcl = forceIntValue(cmdlnOpts.lowTuneLower, 0, 4095)
+Lfch = forceIntValue(cmdlnOpts.lowTuneUpper, 0, 4095)
+Hfcl = forceIntValue(cmdlnOpts.highTuneLower, 0, 4095)
+Hfch = forceIntValue(cmdlnOpts.highTuneUpper, 0, 4095)
+# Check that the lower FFT indice are less than the upper FFT indices.
+if not Lfch > Lfcl:
+   print('Low tuning lower FFT index must be less than the upper FFT index.')
+   exit(1)
+# endif
+if not Hfch > Hfcl:
+   print('High tuning lower FFT index must be less than the upper FFT index.')
+   exit(1)
+# endif
+
+# CCY - Because we are now allowing the spectrogram to have a bandpass selection for the different
+# tunings, we must explicitly pull out the bandpass for each tuning separately.
+#
+rawData = np.load(cmdlnArgs[0])
+lowSpectrogram = rawData[:,0,Lfcl:Lfch]
+highSpectrogram = rawData[:,1,Hfcl:Hfch]
+# Correct bandpass and baseline for the low tuning
+lowBandpass = savitzky_golay( np.median(lowSpectrogram, 0), 151, 2 )
+for i in range(len(lowBandpass)):
+   lowSpectrogram[:,i] = lowSpectrogram[:,i] - lowBandpass[i]
+lowBaseline = savitzky_golay( np.median(lowSpectrogram, 1), 151, 2 )
+for i in range(len(lowBaseline)):
+   lowSpectrogram[i,:] = lowSpectrogram[i,:] - lowBaseline[i]
+
+# Correct bandpass and baseline for the high tuning.
+highBandpass = savitzky_golay( np.median(highSpectrogram, 0), 151, 2 )
+for i in range(len(highBandpass)):
+   highSpectrogram[:,i] = highSpectrogram[:,i] - highBandpass[i]
+highBaseline = savitzky_golay( np.median(highSpectrogram, 1), 151, 2 )
+for i in range(len(highBaseline)):
+   highSpectrogram[i,:] = highSpectrogram[i,:] - highBaseline[i]
+
+lowSTD = lowSpectrogram.std()
+lowSpectrogram = RFI(lowSpectrogram, 5.0*lowSTD)
+lowSpectrogram = snr(lowSpectrogram)
+lowSpectrogram[:,:][ np.where( (abs(lowSpectrogram) > 3.0*lowSTD) ) ] = lowSpectrogram[:,:].mean()
+
+highSTD = highSpectrogram.std()
+highSpectrogram = RFI(highSpectrogram, 5.0*highSTD)
+highSpectrogram = snr(highSpectrogram)
+highSpectrogram[:,:][ np.where( (abs(highSpectrogram) > 3.0*highSTD) ) ] = highSpectrogram[:,:].mean()
+
 #bandpass
-bp = 0.*sp[0,:,:]
+#bp = 0.*sp[0,:,:]
 #baseline
-bl = 0.*sp[:,:,0]
-bp[:,:]= np.median(sp, 0)
-bp[0,] = savitzky_golay(bp[0,],151,2)
-bp[1,] = savitzky_golay(bp[1,],111,2)
+#bl = 0.*sp[:,:,0]
+#bp[:,:]= np.median(sp, 0)
+#bp[0,] = savitzky_golay(bp[0,:],151,2)
+#bp[1,] = savitzky_golay(bp[1,:],111,2)
 #correct the bandpass
-for tuning in (0,1):
-    sp[:,tuning,:] = sp[:,tuning,:]-bp[tuning,]
-bl[:,:]= np.median(sp, 2)
-bl[:,0] = savitzky_golay(bl[:,0],151,2)
-bl[:,1] = savitzky_golay(bl[:,1],151,2)
+#for tuning in (0,1):
+#    sp[:,tuning,:] = sp[:,tuning,:]-bp[tuning,]
+#bl[:,:]= np.median(sp, 2)
+#bl[:,0] = savitzky_golay(bl[:,0],151,2)
+#bl[:,1] = savitzky_golay(bl[:,1],151,2)
+
 #correct the baseline
-for tuning in (0,1):
-    sp[:,tuning,:] = (sp[:,tuning,:].T - bl[:,tuning].T).T
+#for tuning in (0,1):
+#    sp[:,tuning,:] = (sp[:,tuning,:].T - bl[:,tuning].T).T
 
-for tuning in (0,1):
-    sp[:,tuning,:] = RFI(sp[:,tuning,:],5.*sp[:,tuning,:].std())
+#for tuning in (0,1):
+#    sp[:,tuning,:] = RFI(sp[:,tuning,:],5.*sp[:,tuning,:].std())
 
-for tuning in (0,1):
-    sp[:,tuning,:] = snr(sp[:,tuning,:])
+#for tuning in (0,1):
+#    sp[:,tuning,:] = snr(sp[:,tuning,:])
 
-for tuning in (0,1):
-    sp[:,tuning,:][ np.where( ( abs(sp[:,tuning,:]) > 3.*sp[:,tuning,:].std()) )] = sp[:,tuning,:].mean()
+#for tuning in (0,1):
+#    sp[:,tuning,:][ np.where( ( abs(sp[:,tuning,:]) > 3.*sp[:,tuning,:].std()) )] = sp[:,tuning,:].mean()
 
-#'''
-plt.imshow(sp[:,0,:].T, cmap='Greys_r', origin = 'low', aspect = 'auto')
+
+plt.imshow(lowSpectrogram.T, cmap='Greys_r', origin = 'low', aspect = 'auto')
 plt.suptitle('Spectrogram Low Tuning', fontsize = 30)
 plt.xlabel('Time (14 sec)',fontdict={'fontsize':16})
-plt.ylabel('Frequency (4.7 kHz)',fontdict={'fontsize':14})
+plt.ylabel('Frequency (4.79 kHz)',fontdict={'fontsize':14})
 plt.colorbar().set_label('std',size=18)
-#plt.show()
-plt.savefig('Low')
-#'''
+plt.savefig('lowspectrogram')
 plt.clf()
 
-plt.imshow(sp[:,1,:].T, cmap='Greys_r', origin = 'low', aspect = 'auto')
+plt.imshow(highSpectrogram.T, cmap='Greys_r', origin = 'low', aspect = 'auto')
 plt.suptitle('Spectrogram High Tuning', fontsize = 30)
 plt.xlabel('Time (14 sec)',fontdict={'fontsize':16})
-plt.ylabel('Frequency (4.7 kHz)',fontdict={'fontsize':14})
+plt.ylabel('Frequency (4.79 kHz)',fontdict={'fontsize':14})
 plt.colorbar().set_label('std',size=18)
-#plt.show()
-plt.savefig('High')
+plt.savefig('highspectrogram')
+plt.clf()
+
+exit(0)

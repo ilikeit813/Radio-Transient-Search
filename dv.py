@@ -266,6 +266,8 @@ if __name__ == '__main__':
     maxpw = 600 #Maximum pulse width to search in seconds. default = 1 s.
     thresh= 5.0 #SNR cut off
 
+    # CCY - TODO:  Update command-line parsing to use OptionParser.
+
     # CCY - This modification allows specifying the original time series data filepath and fcl and fch
     # parameters from the command line.  This gives more flexibility in that it allows dv.py to find any
     # pattern of frame files and allows specifying the frequency band without having to make hard-coded
