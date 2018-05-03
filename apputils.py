@@ -6,14 +6,26 @@
 import os
 import sys
 
-
-def forceIntValue(inValue, lower, upper):
-   # Return inValue as an integer forced to be in the range from <lower> to <upper>
+def clipValue(inValue, lower, upper, valueType=None):
+   # CCY - NOTE: while this works, it needs to be smarter about checking that the type specified is a
+   # numerical type that is not complex and that lower and upper do not exceed the min/max bounds for
+   # that type.
+   #
+   if valueType is None
+      valueType = int
+   # endif
+   
+   # Return inValue to be in the range from <lower> to <upper> with the specified type.
    result = max([lower, inValue])
    result = min([upper, result])
-   result = int(result)
+   result = valueType(result)
    return result
+# end clipVale()
+
+def forceIntValue(inValue, lower, upper):
+   return clipValue(inValue, lower, upper, valueType=int)
 # end forceIntVale()
+#
 
 
 def Decimate(ts, ndown=2):

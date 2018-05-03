@@ -120,8 +120,8 @@ def main(args):
    print 'High freq bandpass = {low} - {high} Hz at tuning {tuning} Hz'.format(low=freq2[Hfcl],
          high=freq2[Hfch],tuning=centralFreq2)
    numpy.save('tInt',tInt)
-   numpy.save('lowtunebandpass',freq1[Lfcl:Lfch])
-   numpy.save('hightunebandpass',freq2[Hfcl:Hfch])
+   numpy.save('lowtunefreq',freq1[Lfcl:Lfch])
+   numpy.save('hightunefreq',freq2[Hfcl:Hfch])
 
    inFile.close()
 # end main()

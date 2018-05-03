@@ -36,7 +36,7 @@ if numFiles > 0:
    for i in range(numFiles):
       sp[i,:,:]=np.load(waterfallFilenames[i])
 
-   np.save(cmdlnOpts.outFilepath, Decimate(sp, sp.shape[0]/4000))
+   np.save(cmdlnOpts.outFilepath, Decimate(sp, sp.shape[0]/6000))
 
    # Check that the combined file was created, safely.
    if not os.path.exists('{prefix}.npy'.format(prefix=cmdlnOpts.outFilepath)):

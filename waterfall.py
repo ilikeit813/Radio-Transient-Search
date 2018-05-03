@@ -29,10 +29,15 @@ def main(args):
    cmdlnParser.add_option("-i", "--integrate-time", dest="spectIntTime", default=0.001, type="float", 
                            action="store", 
                            help="Spectral integration time in seconds.", metavar="SECS")
-   cmdlnParser.add_option("-s", "--samples", dest="nSamples", default=4000, type="long",
+   cmdlnParser.add_option("-s", "--samples", dest="nSamples", default=10000, type="int",
                            action="store",
-                           help="Number of spectral samples for coarse spectrogram.",
+                           help="Number of total spectral samples to produce for the waterfall.",
                            metavar="NUM")
+   cmdlnParser.add_option("-p", "--samples-per-sec", dest="nSamplesSec", default=0, type="int",
+                          action="store",
+                          help="Number of spectral samples per second generated for the waterfall." +
+                          "This will override the setting for the total number of samples",
+                          metavar="NUM")
    (cmdlnOpts, args) = cmdlnParser.parse_args()
    if len(args) == 0:
       print "Must supply a path to the radio data file."
@@ -44,7 +49,11 @@ def main(args):
    inFilename = os.path.basename(os.path.splitext(inFilepath)[0])
    spectIntTime = cmdlnOpts.spectIntTime
    nSamples = max(cmdlnOpts.nSamples, nProcs)
+   nSamplesSec = min(cmdlnOpts.nSamplesSec, 1/spectIntTime)
+   if nSamplesSec < 0:
+      nSamplesSec = 0
    nSamplesProc = nSamples/nProcs
+
 
    # Open the radio data file.
    try:
@@ -68,6 +77,7 @@ def main(args):
       tunepols = drx.getFramesPerObs(inFile)
       tunepol = tunepols[0] + tunepols[1] + tunepols[2] + tunepols[3]
       beampols = tunepol
+
       try:
          srate = junkFrame.getSampleRate()
          pass
@@ -76,6 +86,17 @@ def main(args):
          inFile.close()
          sys.exit(1)
       # end try
+
+      # If the user specified a number of samples per second of data for the waterfall, then compute 
+      # the number of samples that need to be generated.  This is overriding any explicit setting of 
+      # number of samples.
+      if nSamplesSec > 0:
+         nSecsFile = nFramesFile/(nFramesBeam*srate)
+         # Determine the number of samples to extract given the rate of samples per second of data.
+         # Make sure this is not more than the number of samples that can extracted given the spectral
+         # integration time.
+         nSamples = int(min(nSecFile*nSamplesSec, nSecsFile/spectIntTime))
+         nSamplesProc = nSamples/nProcs
 
       # The following values are used to control how we step through the radio data file.  We are not
       # trying to read every frame in the file.  Only the frames needed to build the coarse waterfall.
@@ -88,10 +109,10 @@ def main(args):
 
       nDecimateFactor = max(nSamplesFile/nSamples, long(1))    # Decimation factor.
 
-      sampleFileOffset = nFramesSample*drx.FrameSize  # File offset of each spectral sample.
-      procFileOffset = nFileSamplesProc*sampleFileOffset  # File offset of each MPI process region.
+      sampleFileOffset = nFramesSample*drx.FrameSize     # File offset of each spectral sample.
+      procFileOffset = nFileSamplesProc*sampleFileOffset # File offset of each MPI process region.
       deciFileOffset = nDecimateFactor*sampleFileOffset  # File offset of each decimated sample that we
-                                                         # actually process.
+                                                         # actually extract.
 
 
       # Scan the first 4 frames to determine the low and high tuning frequencies.
@@ -162,13 +183,17 @@ def main(args):
          # endif
       # endif
       nCount = 0
-      while nCount < nFileSamplesProc:
+      # Loop over the current span of samples in the file assigned to this process and extract decimated
+      # samples until we have either processed the entire spawn or we have acquired the total number of
+      # decimated samples we need.
+      while nCount < nFileSamplesProc and sampleIndex <= nSamples:
          nStartFrame = nProcStartFrame + nCount*nFramesSample
          nEndFrame = nStartFrame + nFramesSample - 1
-         print 'Spectral integration of sample {sample} of {totsamples}'.format(sample=sampleIndex,
-               totsamples=nSamples), \
+         print('Process {rank}:'.format(rank=procRank),
+               'Spectral integration of sample',
+               '{sample} of {totsamples}'.format(sample=sampleIndex, totsamples=nSamples), 
                '(frames {beg} - {end} of {frames}):'.format(beg=nStartFrame, end=nEndFrame, 
-                                                            frames=nFramesFile)
+                                                            frames=nFramesFile))
          print '   Temporal resl = {value} secs'.format(value=tInt)
          print '   Channel width = {value:7.6g} MHz'.format(value=channelWidth)
          print '   Low Tuning = {value:6.5g} MHz'.format(value=centralFreq1MHz)
@@ -225,17 +250,30 @@ def main(args):
          outname = "%s_%i_fft_offset_%.9i_frames" % (inFilename, beam, nStartFrame)
          numpy.save('waterfall' + outname, masterSpectra )
 
-         # Skip forward to the next decimated sample.  Then reset the spectrum to zero.
-         inFile.seek(nDecimateFactor*nFramesSample*drx.FrameSize, 1)
+         # Increment the sample counters.
          nCount = nCount + nDecimateFactor
-         masterSpectra.fill(0.0)
          sampleIndex = sampleIndex + 1
-      # end while nCount < nFileSamplesProc:
 
+         # Check that moving to the next decimated sample will have enough file remaining such to
+         # extract a full sample.  If it does, then move to the next sample. Otherwise, halt the loop.
+         nextOffset = inFile.tell() + deciFileOffset
+         fileRemains = nBytesFile - nextOffset - 1
+         if fileRemains >= nFramesSample*drx.FrameSize:
+            inFile.seek(deciFileOffset, 1)
+            masterSpectra.fill(0.0)
+         else:
+            # If we hit the end of the file before we get all the samples, notify the user.
+            if nCount < nFileSamplesProc and sampleIndex <= nSamples:
+               print('Process {rank}: Reached EOF before next decimated sample'.format(rank=procRank),
+                     'could be extracted.  Potential loss of data.')
+            # endif
+            break
+         # endif
+      # end while nCount < nFileSamplesProc && sampleIndex <= nSamples:
    # end while nProcSpecial < 2:
 
    inFile.close()
-# end def main()
+# end main()
 
 # Main routine
 if __name__ == "__main__":
