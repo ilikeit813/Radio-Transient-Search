@@ -38,6 +38,9 @@ def main(args):
                           help="Number of spectral samples per second generated for the waterfall." +
                           "This will override the setting for the total number of samples",
                           metavar="NUM")
+   cmdlnParser.add_option("-d", "--detailed", dest="fDetailed", default=False,
+                          action="store_true",
+                          help="Flag denoting to perform a detailed spectrogram.")
    (cmdlnOpts, args) = cmdlnParser.parse_args()
    if len(args) == 0:
       print "Must supply a path to the radio data file."
@@ -48,17 +51,15 @@ def main(args):
    inFilepath = args[0]
    inFilename = os.path.basename(os.path.splitext(inFilepath)[0])
    spectIntTime = cmdlnOpts.spectIntTime
-   nSamples = max(cmdlnOpts.nSamples, nProcs)
-   nSamplesSec = min(cmdlnOpts.nSamplesSec, 1/spectIntTime)
-   if nSamplesSec < 0:
-      nSamplesSec = 0
+   nSamples = max(abs(cmdlnOpts.nSamples), nProcs)
+   nSamplesSec = min(abs(cmdlnOpts.nSamplesSec), 1/spectIntTime)
    nSamplesProc = nSamples/nProcs
 
 
    # Open the radio data file.
    try:
       inFile = open(inFilepath, "rb")
-      nBytesFile = long(os.path.getsize(inFilepath))  # Radio data file size in bytes.
+      nBytesFile = os.path.getsize(inFilepath)  # Radio data file size in bytes.
    except:
       print inFilepath,' not found'
       sys.exit(1)
@@ -87,31 +88,35 @@ def main(args):
          sys.exit(1)
       # end try
 
+      secsChunk = 4096.0/srate   # Number of seconds span by a single beam data chunk (4 frames).
+      nChunksSample = int(spectIntTime/secsChunk + 0.5) # Number of beam data chunks per spectral sample.
+      nFramesSample = nFramesBeam*nChunksSample       # Frames per spectral sample.
+      nSamplesFile = int(nFramesFile/nFramesSample)   # Number of spectral samples in the data file.
+
       # If the user specified a number of samples per second of data for the waterfall, then compute 
       # the number of samples that need to be generated.  This is overriding any explicit setting of 
       # number of samples.
       if nSamplesSec > 0:
-         nSecsFile = nFramesFile/(nFramesBeam*srate)
+         nSecsFile = nFramesFile*secsChunk/nFramesBeam
          # Determine the number of samples to extract given the rate of samples per second of data.
          # Make sure this is not more than the number of samples that can extracted given the spectral
          # integration time.
-         nSamples = int(min(nSecFile*nSamplesSec, nSecsFile/spectIntTime))
-         nSamplesProc = nSamples/nProcs
+         nSamples = int(min(nSecsFile*nSamplesSec, nSecsFile/spectIntTime))
+      # endif
+      nSamples = min(nSamples, nSamplesFile)
 
       # The following values are used to control how we step through the radio data file.  We are not
       # trying to read every frame in the file.  Only the frames needed to build the coarse waterfall.
       #
-      nChunksSample = long(srate*spectIntTime)     # Number of beam data chunks per spectral sample.
-      nFramesSample = nFramesBeam*nChunksSample    # Frames per spectral sample.
-      nSamplesFile = nFramesFile/nFramesSample     # Number of spectral samples in the data file.
-      nFileSamplesProc = nSamplesFile/nProcs       # Number of spectral samples in the file covered by 
-                                                   # each MPI process.
+      nSamplesProc = int(nSamples/nProcs)          # Number of samples each MPI process extracts.
 
-      nDecimateFactor = max(nSamplesFile/nSamples, long(1))    # Decimation factor.
+      nDecimation = max(int(nSamplesFile/nSamples), int(1))    # Decimation.
 
+      nFileSamplesProc = nDecimation*nSamplesPerProc     # Number of samples in the file spanned by the
+                                                         # region processed by a single MPI process.
       sampleFileOffset = nFramesSample*drx.FrameSize     # File offset of each spectral sample.
       procFileOffset = nFileSamplesProc*sampleFileOffset # File offset of each MPI process region.
-      deciFileOffset = nDecimateFactor*sampleFileOffset  # File offset of each decimated sample that we
+      deciFileOffset = nDecimation*sampleFileOffset      # File offset of each decimated sample that we
                                                          # actually extract.
 
 
@@ -145,21 +150,26 @@ def main(args):
    
    framesRemaining = nFramesFile
    framesWork = nFramesBeam
-   masterSpectra = numpy.zeros((2, LFFT-1))  # CCY - NOTE: The DC component is removed from the FFT
-                                             # before saving the spectrogram.  Not sure why this is
-                                             # done, but it essentially removes the component with the
-                                             # central frequency.
+   # Allocate the output spectra depending whether we are doing a coarse or detailed spectrogram.
+   if not cmdlnOpts.fDetailed:
+      outSpectra = numpy.zeros((2, LFFT)) # Waterfall spectrum.
+      spectraTag = 'waterfall'
+   else:
+      outSpectra = numpy.zeros((nChunksSample, 2, LFFT)) # Spectrogram of a single sample.
+      spectraTag = 'master'
+   # endif
    data = numpy.zeros((4,framesWork*4096/beampols), dtype=numpy.csingle)
    freq = numpy.fft.fftshift(numpy.fft.fftfreq(LFFT, d = 1.0/srate))
    tInt = 1.0*LFFT/srate
    channelWidth = 1e-6/tInt
    centralFreq1MHz = centralFreq1*1e-6
    centralFreq2MHz = centralFreq2*1e-6
-   normFactor = 2*LFFT*nChunksSample
+   normFactor = 1.0/(4*LFFT)
+   avgFactor = 1.0/nChunksSample
    # Master loop over all of the spectral samples to be processed by the current MPI process.
    for nProcSpecial in range(2):
-      nProcStartFrame = nFileSamplesProc*procRank*nFramesSample
-      sampleIndex = nSamplesProc*procRank + 1
+      nProcStartFrame = nDecimation*nSamplesProc*procRank*nFramesSample
+      sampleCount = nSamplesProc*procRank + 1
       # We want the rank 0 process, and only the rank 0 process, to handle the trailing extra samples 
       # remaining once it is done with the normal segment of samples.  This requires us to change the 
       # starting frame number and position in the file to just the samples that remain.  Everything else
@@ -168,11 +178,14 @@ def main(args):
          if procRank == 0:
             samplesDone = nSamplesProc*nProcs
             if samplesDone < nSamples:
-               sampleIndex = samplesDone
-               nProcStartFrame = nFileSamplesProc*nProcs*nFramesSample
-               # Determine how many samples remain in the file and jump to the start of that remainder.
-               nFileSamplesProc = max(nSamplesFile - nProcs*nFileSamplesProc, 0)
-               inFile.seek(-nFramesSample*nFileSamplesProc*drx.FrameSize, 2)
+               # Update the sample count and set the number of file samples per process to the remainder
+               # of file samples.
+               sampleCount = samplesDone + 1
+               nFileSamplesProc = nSamplesFile - nDecimation*nSamplesProc*nProc
+
+               # Jump to the start of the remainder segment of the data file.
+               nProcStartFrame = nDecimation*nSamplesProc*nProcs*nFramesSample
+               inFile.seek(nProcStartFrame*nFileSamplesProc*drx.FrameSize, 0)
             else:
                # We have all the samples, so don't do the loop to process samples.
                nFileSamplesProc = 0
@@ -182,18 +195,18 @@ def main(args):
             nFileSamplesProc = 0
          # endif
       # endif
-      nCount = 0
+      sampleIndex = 0
       # Loop over the current span of samples in the file assigned to this process and extract decimated
       # samples until we have either processed the entire spawn or we have acquired the total number of
       # decimated samples we need.
-      while nCount < nFileSamplesProc and sampleIndex <= nSamples:
-         nStartFrame = nProcStartFrame + nCount*nFramesSample
+      while sampleIndex < nFileSamplesProc and sampleCount <= nSamples:
+         nStartFrame = nProcStartFrame + sampleIndex*nFramesSample
          nEndFrame = nStartFrame + nFramesSample - 1
-         print('Process {rank}:'.format(rank=procRank),
-               'Spectral integration of sample',
-               '{sample} of {totsamples}'.format(sample=sampleIndex, totsamples=nSamples), 
-               '(frames {beg} - {end} of {frames}):'.format(beg=nStartFrame, end=nEndFrame, 
-                                                            frames=nFramesFile))
+         print 'Process {rank}:'.format(rank=procRank), \
+               'Spectral integration of sample', \
+               '{sample} of {totsamples}'.format(sample=sampleCount, totsamples=nSamples),  \
+               '(frames {beg} - {end} of {frames}):'.format(beg=nStartFrame, end=nEndFrame,  \
+                                                            frames=nFramesFile)
          print '   Temporal resl = {value} secs'.format(value=tInt)
          print '   Channel width = {value:7.6g} MHz'.format(value=channelWidth)
          print '   Low Tuning = {value:6.5g} MHz'.format(value=centralFreq1MHz)
@@ -229,16 +242,21 @@ def main(args):
                count[aStand] +=  1
             # end for j in xrange(framesWork)
 
-            # Calculate the spectra for the current data chunk.
+            # Integrate the spectra for the current data chunk.
             #
-            dataFFT = numpy.fft.fftshift( numpy.fft.fft(data[:2,:].mean(0))[1:] )
-            diffPower = (dataFFT.real*dataFFT.real + dataFFT.imag*dataFFT.imag)/(normFactor)
-            masterSpectra[0,:] += diffPower
-
-            dataFFT = numpy.fft.fftshift( numpy.fft.fft(data[2:,:].mean(0))[1:] )
-            diffPower = (dataFFT.real*dataFFT.real + dataFFT.imag*dataFFT.imag)/(normFactor)
-            masterSpectra[1,:] += diffPower
-
+            # Extract low-tuning FFTs.
+            dataFFT = numpy.fft.fftshift( numpy.fft.fft(data[:2,:].mean(0))[:] )
+            lowPowerFFT = normFactor*(dataFFT.real*dataFFT.real + dataFFT.imag*dataFFT.imag)
+            # Extract high-tuning FFTs.
+            dataFFT = numpy.fft.fftshift( numpy.fft.fft(data[2:,:].mean(0))[:] )
+            highPowerFFT = normFactor*(dataFFT.real*dataFFT.real + dataFFT.imag*dataFFT.imag)
+            if not cmdlnOpts.fDetailed:
+               outSpectra[0,:] += lowPowerFFT*avgFactor
+               outSpectra[1,:] += highPowerFFT*avgFactor
+            else:
+               outSpectra[i,0,:] = lowPowerFFT
+               outSpectra[i,1,:] = highPowerFFT
+            # endif
 
             #masterSpectra[i,0,:] = ((numpy.fft.fftshift(numpy.abs(
             #      numpy.fft.fft2(data[:2,:]))[:,1:]))**2.).mean(0)/LFFT/2. #in unit of energy
@@ -248,28 +266,28 @@ def main(args):
 
          # Build the DRX file
          outname = "%s_%i_fft_offset_%.9i_frames" % (inFilename, beam, nStartFrame)
-         numpy.save('waterfall' + outname, masterSpectra )
+         numpy.save('{tag}{label}'.format(tag=spectraTag, label=outname), outSpectra )
 
          # Increment the sample counters.
-         nCount = nCount + nDecimateFactor
-         sampleIndex = sampleIndex + 1
+         sampleIndex = sampleIndex + nDecimation
+         sampleCount = sampleCount + 1
 
          # Check that moving to the next decimated sample will have enough file remaining such to
          # extract a full sample.  If it does, then move to the next sample. Otherwise, halt the loop.
-         nextOffset = inFile.tell() + deciFileOffset
-         fileRemains = nBytesFile - nextOffset - 1
-         if fileRemains >= nFramesSample*drx.FrameSize:
-            inFile.seek(deciFileOffset, 1)
-            masterSpectra.fill(0.0)
+         nextOffset = inFile.tell() + deciFileOffset - sampleFileOffset
+         fileRemains = (nBytesFile - 1) - nextOffset
+         if fileRemains >= sampleFileOffset:
+            inFile.seek(deciFileOffset - sampleFileOffset, 1)
+            outSpectra.fill(0.0)
          else:
             # If we hit the end of the file before we get all the samples, notify the user.
-            if nCount < nFileSamplesProc and sampleIndex <= nSamples:
+            if sampleIndex < nFileSamplesProc and sampleCount <= nSamples:
                print('Process {rank}: Reached EOF before next decimated sample'.format(rank=procRank),
                      'could be extracted.  Potential loss of data.')
             # endif
             break
          # endif
-      # end while nCount < nFileSamplesProc && sampleIndex <= nSamples:
+      # end while sampleIndex < nFileSamplesProc && sampleCount <= nSamples:
    # end while nProcSpecial < 2:
 
    inFile.close()

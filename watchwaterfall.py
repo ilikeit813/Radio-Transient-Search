@@ -67,6 +67,8 @@ def savitzky_golay(y, window_size, order, deriv=0):
        W.H. Press, S.A. Teukolsky, W.T. Vetterling, B.P. Flannery
        Cambridge University Press ISBN-13: 9780521880688
     """
+
+    # Create the filter kernel.  We only want to create this _ONCE_ for any given set of parameters.
     try:
         window_size = np.abs(np.int(window_size))
         order = np.abs(np.int(order))
@@ -165,28 +167,27 @@ lowSpectrogram = rawData[:,0,Lfcl:Lfch]
 highSpectrogram = rawData[:,1,Hfcl:Hfch]
 # Correct bandpass and baseline for the low tuning
 lowBandpass = savitzky_golay( np.median(lowSpectrogram, 0), 151, 2 )
-for i in range(len(lowBandpass)):
-   lowSpectrogram[:,i] = lowSpectrogram[:,i] - lowBandpass[i]
+lowSpectrogram = lowSpectrogram - lowBandpass
 lowBaseline = savitzky_golay( np.median(lowSpectrogram, 1), 151, 2 )
-for i in range(len(lowBaseline)):
-   lowSpectrogram[i,:] = lowSpectrogram[i,:] - lowBaseline[i]
+lowSpectrogram = (lowSpectrogram.T - lowBaseline).T
 
 # Correct bandpass and baseline for the high tuning.
 highBandpass = savitzky_golay( np.median(highSpectrogram, 0), 151, 2 )
-for i in range(len(highBandpass)):
-   highSpectrogram[:,i] = highSpectrogram[:,i] - highBandpass[i]
+highSpectrogram[:,:] = highSpectrogram[:,:] - highBandpass
 highBaseline = savitzky_golay( np.median(highSpectrogram, 1), 151, 2 )
-for i in range(len(highBaseline)):
-   highSpectrogram[i,:] = highSpectrogram[i,:] - highBaseline[i]
+highSpectrogram = (highSpectrogram.T - highBaseline).T
+
 
 lowSTD = lowSpectrogram.std()
 lowSpectrogram = RFI(lowSpectrogram, 5.0*lowSTD)
 lowSpectrogram = snr(lowSpectrogram)
-lowSpectrogram[:,:][ np.where( (abs(lowSpectrogram) > 3.0*lowSTD) ) ] = lowSpectrogram[:,:].mean()
+lowSTD = lowSpectrogram.std()
+lowSpectrogram[ np.where( (abs(lowSpectrogram) > 3.0*lowSTD) ) ] = lowSpectrogram.mean()
 
 highSTD = highSpectrogram.std()
 highSpectrogram = RFI(highSpectrogram, 5.0*highSTD)
 highSpectrogram = snr(highSpectrogram)
+highSTD = highSpectrogram.std()
 highSpectrogram[:,:][ np.where( (abs(highSpectrogram) > 3.0*highSTD) ) ] = highSpectrogram[:,:].mean()
 
 #bandpass

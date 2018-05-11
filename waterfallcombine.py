@@ -5,7 +5,7 @@ import glob
 import numpy as np
 from optparse import OptionParser
 
-from apputils import Decimate
+from apputils import PyDecimate
 
 
 
@@ -30,13 +30,16 @@ filenamePattern = 'waterfall{name}*.npy'.format(name=filename)
 waterfallFilenames = sorted(glob.glob(filenamePattern))
 
 numFiles = len(waterfallFilenames)
+waterfallFilenames = PyDecimate(waterfallFilenames, numFiles/6000)
+numFiles = len(waterfallFilenames)
 if numFiles > 0:
    sample = np.load(waterfallFilenames[0])
    sp = np.zeros((numFiles, sample.shape[0], sample.shape[1]))
    for i in range(numFiles):
       sp[i,:,:]=np.load(waterfallFilenames[i])
+   # end for i in range(numFiles)
 
-   np.save(cmdlnOpts.outFilepath, Decimate(sp, sp.shape[0]/6000))
+   np.save(cmdlnOpts.outFilepath, sp)
 
    # Check that the combined file was created, safely.
    if not os.path.exists('{prefix}.npy'.format(prefix=cmdlnOpts.outFilepath)):

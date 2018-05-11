@@ -7,8 +7,12 @@
 
 # == Script resuming capability ==
 #
-RESUME_CMD_FILEPATH="./default_cmd.resume"   # Default path to the resume-status file.
-RESUME_VAR_FILEPATH="./default_var.resume"   # Default path to the resume-variable file.
+if [ -z "${RESUME_CMD_FILEPATH}" ]; then
+   RESUME_CMD_FILEPATH="./default_cmd.resume"   # Default path to the resume-status file.
+fi
+if [ -z "${RESUME_VAR_FILEPATH}" ]; then
+   RESUME_VAR_FILEPATH="./default_var.resume"   # Default path to the resume-variable file.
+fi
 
 # Command resume status.
 #
@@ -438,6 +442,20 @@ function resumevar ()
    return 0
 }
 
+
+
+function report_resumecmd()
+{
+   if [ -n "${RESUME_LASTCMD_SUCCESS}" ]; then
+      if [ ${RESUME_LASTCMD_SUCCESS} -eq 1 ]; then
+         echo "resumecmd: task SUCCESS"
+      else
+         echo "resumecmd: task FAIL"
+      fi
+   else
+      echo "resumecmd: task status UNKNOWN"
+   fi
+}
 
 # === END SCRIPT RESUMING CAPABILITY ==
 

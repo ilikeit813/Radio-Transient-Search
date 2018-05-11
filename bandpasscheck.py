@@ -46,11 +46,11 @@ Lfch = forceIntValue(cmdlnOpts.lowTuneUpper, 0, 4095)
 Hfcl = forceIntValue(cmdlnOpts.highTuneLower, 0, 4095)
 Hfch = forceIntValue(cmdlnOpts.highTuneUpper, 0, 4095)
 # Check that the lower FFT indice are less than the upper FFT indices.
-if not Lfch > Lfcl:
+if Lfch <= Lfcl:
    print('Low tuning lower FFT index must be less than the upper FFT index.')
    exit(1)
 # endif
-if not Hfch > Hfcl:
+if Hfch <= Hfcl:
    print('High tuning lower FFT index must be less than the upper FFT index.')
    exit(1)
 # endif

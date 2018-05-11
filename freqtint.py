@@ -3,6 +3,7 @@ import sys
 from optparse import OptionParser
 import numpy
 import drx
+import errors
 from apputils import forceIntValue
 
 def main(args):
@@ -120,8 +121,8 @@ def main(args):
    print 'High freq bandpass = {low} - {high} Hz at tuning {tuning} Hz'.format(low=freq2[Hfcl],
          high=freq2[Hfch],tuning=centralFreq2)
    numpy.save('tInt',tInt)
-   numpy.save('lowtunefreq',freq1[Lfcl:Lfch])
-   numpy.save('hightunefreq',freq2[Hfcl:Hfch])
+   numpy.save('lowtunefreq',freq1)
+   numpy.save('hightunefreq',freq2)
 
    inFile.close()
 # end main()

@@ -5,13 +5,14 @@
 #
 import os
 import sys
+import numpy
 
 def clipValue(inValue, lower, upper, valueType=None):
    # CCY - NOTE: while this works, it needs to be smarter about checking that the type specified is a
    # numerical type that is not complex and that lower and upper do not exceed the min/max bounds for
    # that type.
    #
-   if valueType is None
+   if valueType is None:
       valueType = int
    # endif
    
@@ -50,6 +51,31 @@ def Decimate(ts, ndown=2):
    if ndown <= 1:
       return ts
    n_rep = int(len(ts) / ndown)
-   return np.array([ts[i::ndown][0:n_rep] for i in range(ndown)]).mean(0)
+   return numpy.array([ts[i::ndown][0:n_rep] for i in range(ndown)]).mean(0)
 # end Decimate()
 
+def PyDecimate(pyarray, ndown=2):
+   """
+   Takes a N dimensional array and decimates it by a factor of ndown, default = 2, along axis = 0
+   Code adapted from analysis.binarray module: 
+   http://www.astro.ucla.edu/~ianc/python/_modules/analysis.html#binarray 
+   from Ian's Python Code (http://www.astro.ucla.edu/~ianc/python/index.html)
+    
+   Optimized for time series' with length = multiple of 2.  Will handle others, though.
+
+   Required:
+    
+   pyarray  -  input array
+
+   Options:
+    
+   ndown  -  Factor by which to decimate time series. Default = 2.
+   if ndown <= 1, returns ts       
+   """
+   #return a decimated array shape = x, y, z, ...) with shape =  x/ndown, y, z, ....
+   if ndown <= 1:
+      return pyarray
+   else:
+      return pyarray[0::ndown]
+   # endif
+# end PyDecimate()

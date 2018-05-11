@@ -7,8 +7,10 @@ import os
 import time
 import sys
 import getopt
+from optparse import OptionParser
 from apputils import forceIntValue
 from apputils import clipValue
+
 
 def DMs(DMstart,DMend,dDM):
    """
@@ -25,7 +27,7 @@ def DMs(DMstart,DMend,dDM):
    return int(np.round(NDMs))
 
 
-def delay2(freq, dm):
+def delay2(freq1, freq2, dm):
    """
    Calculate the relative delay due to dispersion over a given frequency
    range in Hz for a particular dispersion measure in pc cm^-3.  Return
@@ -38,7 +40,7 @@ def delay2(freq, dm):
    # Dispersion constant in MHz^2 s / pc cm^-3
    _D = 4.148808e3
    # Delay in s
-   tDelay = dm*_D*((1/freq)**2 - (1/freq.max())**2)
+   tDelay = dm*_D*((1.0/(freq1*freq1)) - (1.0/(freq2*freq2)))
 
    return tDelay
 
@@ -123,141 +125,13 @@ class OutputSource():
      def __str__(self):
         return self.formatter.format(self)
 
-def savitzky_golay(y, window_size, order, deriv=0):
-   """Smooth (and optionally differentiate) data with a Savitzky-Golay filter
-   This implementation is based on [1]_.
-   The Savitzky-Golay filter removes high frequency noise from data.
-   It has the advantage of preserving the original shape and
-   features of the signal better than other types of filtering
-   approaches, such as moving averages techhniques.
-   Parameters
-   ----------
-   y : array_like, shape (N,)
-      the values of the time history of the signal.
-   window_size : int
-      the length of the window. Must be an odd integer number.
-   order : int
-      the order of the polynomial used in the filtering.
-      Must be less then `window_size` - 1.
-   deriv: int
-      the order of the derivative to compute
-      (default = 0 means only smoothing)
-   Returns
-   -------
-   y_smooth : ndarray, shape (N)
-      the smoothed signal (or it's n-th derivative).
-   Notes
-   -----
-   The Savitzky-Golay is a type of low-pass filter, particularly
-   suited for smoothing noisy data. The main idea behind this
-   approach is to make for each point a least-square fit with a
-   polynomial of high order over a odd-sized window centered at
-   the point.
-   Examples
-   --------
-   >>> t = np.linspace(-4, 4, 500)
-   >>> y = np.exp(-t ** 2)
-   >>> np.random.seed(0)
-   >>> y_noisy = y + np.random.normal(0, 0.05, t.shape)
-   >>> y_smooth = savitzky_golay(y, window_size=31, order=4)
-   >>> print np.rms(y_noisy - y)
-   >>> print np.rms(y_smooth - y)
-   References
-   ----------
-   .. [1] http://www.scipy.org/Cookbook/SavitzkyGolay
-   .. [2] A. Savitzky, M. J. E. Golay, Smoothing and Differentiation of
-      Data by Simplified Least Squares Procedures. Analytical
-      Chemistry, 1964, 36 (8), pp 1627-1639.
-   .. [3] Numerical Recipes 3rd Edition: The Art of Scientific Computing
-      W.H. Press, S.A. Teukolsky, W.T. Vetterling, B.P. Flannery
-      Cambridge University Press ISBN-13: 9780521880688
-   """
-   try:
-      window_size = np.abs(np.int(window_size))
-      order = np.abs(np.int(order))
-   except ValueError, msg:
-      raise ValueError("window_size and order have to be of type int")
-
-   if window_size % 2 != 1 or window_size < 1:
-      #raise TypeError("window_size size must be a positive odd number")
-      window_size += 1
-
-   if window_size < order + 2:
-      raise TypeError("window_size is too small for the polynomials order")
-
-   order_range = range(order + 1)
-
-   half_window = (window_size - 1) // 2
-
-   # precompute coefficients
-   b = np.mat([[k ** i for i in order_range]
-            for k in range(-half_window, half_window + 1)])
-   m = np.linalg.pinv(b).A[deriv]
-
-   # pad the signal at the extremes with
-   # values taken from the signal itself
-   firstvals = y[0] - np.abs(y[1:half_window + 1][::-1] - y[0])
-   lastvals = y[-1] + np.abs(y[-half_window - 1:-1][::-1] - y[-1])
-
-   y = np.concatenate((firstvals, y, lastvals))
-
-   return np.convolve(y, m, mode='valid')
-
-def snr(x):return (x-x.mean())/x.std()
-
-def bpf(x, windows = 40):
-   bp = savitzky_golay(x,windows,1)
-   x2 = x / bp
-   mask = np.where(snr(x2)>1)[0]
-   mask2= np.zeros(x.shape[0])
-   mask2[mask] = 1.
-   y = np.ma.array(x, mask = mask2)
-   bp = savitzky_golay(y,windows,1)
-   fit = np.ma.polyfit(np.arange(len(y)),y,4)
-   p = np.poly1d(fit)(np.arange(len(y)))[mask]
-   bp = x
-   bp[mask] = np.poly1d(fit)(np.arange(len(y)))[mask]
-   bp = savitzky_golay(bp,windows,2)
-   return bp
-
-def fold(t,period,T0=0):
-   time = np.arange(len(t))
-   epoch = np.floor( 1.*(time - T0)/period )
-   phase = 1.*(time - T0)/period - epoch
-   foldt = t[np.argsort(phase)]
-   return Decimate_ts(foldt, 1.*len(t)/period )
-
-
-def RFImask(spr):#sp has shape[:,:]
-   x = np.where(abs(spr.mean(1))>np.sort(spr.mean(1))[spr.shape[0]/2]+np.sort(spr.mean(1))[spr.shape[0]/2]-np.sort(spr.mean(1))[1])
-   y = np.where(abs(spr.mean(0))>np.sort(spr.mean(0))[spr.shape[1]/2]+np.sort(spr.mean(0))[spr.shape[1]/2]-np.sort(spr.mean(0))[1])
-   return [x[0],y[0]]
-
-def massagesp(spectrometer, windows_x=43,windows_y=100):
-   bp = bpf(spectrometer.mean(0),windows_x)
-   spectrometer /= bp
-   bl = bpf(spectrometer.mean(1),windows_y)
-   spectrometer = (spectrometer.T - bl).T
-   mask  = np.array ( RFImask(spectrometer) )
-   mask2 = np.zeros((spectrometer.shape))
-   mask2[mask[0],:] = 1.
-   mask2[:,mask[1]] = 1.
-   temp_spec = np.ma.array(spectrometer, mask = mask2 )
-   mean = temp_spec.mean()
-   spectrometer[mask[0],:] = mean
-   spectrometer[:,mask[1]] = mean
-   spectrometer -= mean
-   return spectrometer
 
 
 
 if __name__ == '__main__':
    comm  = MPI.COMM_WORLD
    rank  = comm.Get_rank()
-   fpp   =  264/12 #spectrogram per processer you want, limited mainly by 64GB memory per node (32GB Hokieone)
-   nodes =  2 #the number of node requensted in sh
-   pps   =  6 #processer per node requensted in sh
-   numberofFiles=fpp*nodes*pps #totalnumberofspec = 6895.
+   nProcs = comm.Get_size()
 
    maxpw = 600 #Maximum pulse width to search in seconds. default = 1 s.
    thresh= 5.0 #SNR cut off
@@ -277,13 +151,29 @@ if __name__ == '__main__':
                           metavar="TUNING")
    cmdlnParser.add_option("-s","--dm-start", dest="DMStart", default=0, type="float", action="store",
                           help="Starting DM (between 0 and 5000) for DM trials",
-                          metabar="DM")
+                          metavar="DM")
    cmdlnParser.add_option("-e","--dm-end", dest="DMEnd", default=5000, type="float", action="store",
                           help="Ending DM (between 0 and 5000) for DM trials",
-                          metabar="DM")
+                          metavar="DM")
    cmdlnParser.add_option("-f", "--frequency-file", dest="freqFilepath", default="freq1.npy", 
                           type="string", action="store",
                           help="Path to the bandpass frequency file.", metavar="PATH")
+   cmdlnParser.add_option("-i", "--integration-time", dest="spectIntegTime", default=0.001,
+                          type="float", action="store",
+                          help="Spectral integration time in seconds.", metavar="SECS")
+   cmdlnParser.add_option("-m", "--memory-limit", dest="memLimit", default=10, type="float",
+                          action="store",
+                          help="Memory limit per MPI process in MB.  Default is 10 MB.",
+                          metavar="MB")
+   cmdlnParser.add_option("-p", "--samples-per-sec", dest="nSamplesSec", default=0, type="int",
+                          action="store",
+                          help="Number of samples per second extracted from the data file.  " +
+                          "This will override the total number of samples extracted.",
+                          metavar="NUM")
+   cmdlnParser.add_option("-n", "--samples", dest="nSamples", default=10000, type="int",
+                          action="store",
+                          help="Total number of samples extracted from the data file.",
+                          metavar="NUM")
 
    # Parse the command-line and extract parameters.
    (cmdlnOpts, cmdlnParams) = cmdlnParser.parse_args()
@@ -294,6 +184,11 @@ if __name__ == '__main__':
    DMstart = clipValue(cmdlnOpts.DMStart, 0.0, 5000.0, valueType=float)
    DMend = clipValue(cmdlnOpts.DMEnd, 0.0, 5000.0, valueType=float)
    freqFilepath = cmdlnOpts.freqFilepath
+   memLimit = cmdlnOpts.memLimit
+   spectIntegTime = cmdlnOpts.spectIntegTime
+   nSamples = max(abs(cmdlnOpts.nSamples), nProcs)
+   nSamplesSec = min(abs(cmdlnOpts.nSamplesSec), 1/spectIntTime)
+   nSamplesProc = nSamples/nProcs
 
    # Validate command-line inputs.
    if len(filepath) == 0:
@@ -312,86 +207,176 @@ if __name__ == '__main__':
    # Extract the basename of the radio data file and use that as a pattern for loading the waterfall
    # files.
    filename = os.path.basename(os.path.splitext(filepath)[0])
-   fn   = sorted(glob.glob('waterfall{filename}*.npy'.format(filename=filename)) 
+   fn = sorted( glob.glob('master{tune}{filename}*.npy'.format(tune=pol, filename=filename)) )
 
    # Load the time integration and frequency bandpass information.
    tInt = np.load('tInt.npy')
-   freq=np.load(freqFilepath)
-   freq /= 1e6
+   fullFreq=np.load(freqFilepath)
+   fullFreq /= 1e6
+   cent_freq = np.median(fullFreq)
+   freq = fullFreq[fcl:fch]
+   numFreqs = len(freq)
+   BW = freq.max()-freq.min()
 
    npws = int(np.round(np.log2(maxpw/tInt)))+1 # +1 Due to in range(y) it goes to y-1 only
 
-   spect=np.load(fn[0],mmap_mode='r')[:,:,fcl:fch]
-   spectarray = np.zeros((fpp,spect.shape[0],spect.shape[2])) # X and Y are merged already after bandpass
 
-   # combine spectrogram and remove background
-   for i in range(fpp):
-      print '1',(np.load(fn[rank*fpp+i])[:,pol,fcl:fch]).shape
-      print '2',massagesp( np.load(fn[rank*fpp+i])[:,pol,fcl:fch] ).shape
-      spectarray[i,:,:] = massagesp( np.load(fn[rank*fpp+i])[:,pol,fcl:fch], 10, 50 )
+   try:
+      nBytesFile = os.path.getsize(filepath)  # Radio data file size in bytes.
+   except:
+      print filepath,'not found'
+      sys.exit(1)
+   # end try
+   #
+   nFramesBeam = int(4)                            # Number of frames per beam data sample.
+   nFramesFile = int(nBytesFile/drx.FrameSize)     # Number of frames in the radio data file.
+   nFFTsTotal = int(nFramesFile/nFramesBeam)       # Number of FFTs in the total spectrogram.
+   nFFTsPerFile = spect.shape[0]                   # Number of FFTs in a spectrogram sample file.
 
-   np.save('spectarray%.2i' % rank, spectarray)
-   #sys.exit()
+   secsChunk = tInt   # Number of seconds span by a single beam data chunk (4 frames).
+   nChunksSample = int(spectIntTime/secsChunk + 0.5) # Number of beam data chunks per spectral sample.
+   nFramesSample = nFramesBeam*nChunksSample       # Frames per spectral sample.
+   nSamplesFile = int(nFramesFile/nFramesSample)   # Number of spectral samples in the data file.
 
-   cent_freq = np.median(freq)
-   BW   = freq.max()-freq.min()
+   # If the user specified a number of samples per second of data for the waterfall, then compute 
+   # the number of samples that need to be generated.  This is overriding any explicit setting of 
+   # number of samples.
+   if nSamplesSec > 0:
+      nSecsFile = nFramesFile*secsChunk/nFramesBeam
+      # Determine the number of samples to extract given the rate of samples per second of data.
+      # Make sure this is not more than the number of samples that can extracted given the spectral
+      # integration time.
+      nSamples = int(min(nSecsFile*nSamplesSec, nSecsFile/spectIntTime))
+   # endif
+   nSamples = min(nSamples, nSamplesFile)
+
+   # The following values are used to control how we step through the radio data file.  We are not
+   # trying to read every frame in the file.  Only the frames needed to build the coarse waterfall.
+   #
+   nSamplesProc = int(nSamples/nProcs)          # Number of samples each MPI process extracts.
+
+   nDecimation = max(int(nSamplesFile/nSamples), int(1))    # Decimation.
+
+
    DM = DMstart
+   DMtrials = None
+   if rank == 0:
+      print 'Process {rank}: Generating DM trial values'.format(rank=rank)
+      numLowerTrials = 0
+      numUpperTrials = 0
+      numTotalTrials = 0
+      if DMend > 1000:
+         if DMstart < 1000:
+            numLowerTrials = int((1000 - DMstart)/0.1)
+            numUpperTrials = int(DMend - (numLowerTrials*0.1 + DMstart))
+         else:
+            numUpperTrials = int(DMend - DMstart)
+         # endif
+      else:
+         numLowerTrials = int(DMend - DMstart)
+      # endif
+      numTotalTrials = numLowerTrials + numUpperTrials
+      DMtrials = np.arange(numTotalTrials, dtype=np.float)
+      DMtrials[:numLowerTrials] = DMtrials[:numLowerTrials]*0.1 + DMstart
+      # DMtrials[numLowerTrials:numTotalTrials] += numLowerTrials*0.1 + DMstart - numLowerTrials
+      DMtrials[numLowerTrials:numTotalTrials] += DMstart - 0.9*numLowerTrials
+   # endif
+   DMtrials = comm.bcast(DMtrials,root =0)
+
+   numFiles = len(fn)
+   filesPerProc = int(32*memLimit*tInt/spectIntegTime + 0.5)
+   filesPerBlock = nProcs*filesPerProc
+   spect = np.load(fn[0]) # Load sample file to get number of frames per file.
+   spectSample = np.zeros((spect.shape[0], numFreqs)) # Preallocated spectrogram sample.
+
+   # Open a single output file that is shared amongst all the processes. 
+   filename = "ppc_SNR_pol_%.1i.txt" % (pol)
+   outfile = MPI.File.Open(comm, filename, MPI.MODE_CREATE | MPI.MODE_WRONLY)
+
+   # Preallocate the pulse object that will be written to file.
+   pulse = OutputSource()
+
+   # Preallocate the de-dispersed time-series.
+   ts = np.zeros(nFFTsTotal)  # De-dispersed time-series built only from the spectrogram samples
+                              # assigned to this process.
+   tsMerge = None             # Merged de-dispersed time-series from all processes.
+
+   # Preallocate the lag-free time-series segment that is searched for pulses.
+   endLagIndex = len(tsMerge) - tbMax
+   searchSize = endLagIndex - tbMax
+   tsLagFree = np.zeros(searchSize)
+   sn = np.zeros(searchSize)
+
 
    txtsize=np.zeros((npws,2),dtype=np.int32) # fileno = txtsize[ranki,0], pulse number = txtsize[ranki,1],
                                              # ranki is the decimated order of 2
    txtsize[:,0]=1 #fileno star from 1
-
-
-   DMtrials = DMstart # 0
-   if rank == 0:
-      while DM < DMend:
-         #dDM = disper.dDMi(DMtrial = 1.*DM, nuCenteralMHz = 1.*cent_freq, channelMHz = freq[1]-freq[0], BMHz = freq[-1]-freq[0], SSratio = 0.8, temporal_resol = 1.*tInt)
-         #print dDM
-         if DM < 1000:
-            dDM = 0.1
-         elif DM >= 1000:
-            dDM = 1.
-         DM += dDM
-         DMtrials = np.append(DMtrials,DM)
-
-   DMtrials = comm.bcast(DMtrials,root =0)
-
+   # Loop over each trial DM.
    for DM in DMtrials:
-      #print 'rank = ',rank, ' DM trial = ',DM
-      tb=np.round((delay2(freq,DM)/tInt)).astype(np.int32)
+      print 'Process {rank}: Performing trial DM = {dm}'.format(rank=rank, dm=DM)
 
-      ts=np.zeros((tb.max()+numberofFiles*np.load(fn[0],mmap_mode='r').shape[0]))
-      for freqbin in range(len(freq)): 
-         for i in range(fpp):
-            ts[tb.max()-tb[freqbin] + (rank*fpp+i)*spect.shape[0] :tb.max()-tb[freqbin] + (rank*fpp+i+
-               1)*spect.shape[0] ] += spectarray[i,:,freqbin]
-
-      tstotal=ts*0#initiate a 4 hour blank time series
-      comm.Allreduce(ts,tstotal,op=MPI.SUM)#merge the 4 hour timeseries from all processor
-      tstotal = tstotal[tb.max():len(tstotal)-tb.max()]#cut the dispersed time lag
-
-
-      '''
-      # save the time series around the Pulsar's DM
       if rank == 0:
-         if np.abs(DM - 10.922) <= dDM:
-            print 'DM=',DM
-            np.save('ts_pol%.1i_DMx100_%.6i' % (pol,DM*100),tstotal)
-      sys.exit()
-      '''
+         print 'De-dispersing spectrogram samples'
+
+      # De-disperse the spectrogram samples being handled by this process into the de-dispersed
+      # time-series.
+      fileIndex = rank*filesPerProc
+      while fileIndex < numFiles:
+         nFileCount = 0
+         while fileIndex < numFiles and nFileCount < filesPerProc:
+            spectSample[:,:] = np.load(fn[fileIndex])
+
+            for freqIndex in range(numFreqs):
+               # Compute the de-dispersion shift, in terms of spectrogram FFTs, for a given frequency in
+               # the bandpass.
+               timeBin = np.int32(delay2(freq[freqbin], freq[-1], DM)/tInt + 0.5)
+               # Compute where the de-dispersed spectrogram sample lies in the de-dispersed time-series.
+               tsOffset = fileIndex*nDecimation*nFFTsPerFile - timeBin
+               tsBegin = tsOffset + nFileCount*nDecimation*nFFTsPerFile
+               tsEnd = beginIndex + FFTsPerFile
+               # Add to the de-dispersed time-series only the portion of the de-dispersed spectrogram
+               # sample that lies within the de-dispersed time-series.
+               if endIndex >= 0:
+                  beginCutIndex = 0
+                  if beginIndex < 0:
+                     beginCutIndex = -beginIndex
+                     beginIndex = 0
+                  # endif
+                  ts[beginIndex : endIndex] += spectSample[beginCutIndex:,freqbin]
+               # endif
+            # end for freqIndex in range(numFreqs):
+            
+            nFileCount = nFileCount + 1
+            fileIndex = fileIndex + 1
+         # end while fileIndex < numFiles and nFileCount < filesPerProc
+
+         #fileIndex += filesPerBlock
+         fileIndex = fileIndex - filesPerProc + filesPerBlock
+      # end while fileIndex < numFiles
+
+      if rank == 0:
+         print 'Merging time-series'
+
+      # Merge the de-dispersed time-series from all processes.
+      comm.Allreduce(ts, tsMerge, op=MPI.SUM)
+      ts.fill(0.0)
+
 
       #"""#search for signal with decimated timeseries
-      if rank<npws:#timeseries is ready for signal search
-         ranki=rank
-         filename = "ppc_SNR_pol_%.1i_td_%.2i_no_%.05i.txt" % (pol,ranki,txtsize[ranki,0])
-         outfile = open(filename,'a')
-         ndown = 2**ranki #decimate the time series
-         sn,mean,rms = Threshold(Decimate_ts(tstotal,ndown),thresh,niter=0)
-         ones = np.where(sn!=-1)[0]
-         for one in ones:# Now record all pulses above threshold
-            pulse = OutputSource()
-            txtsize[ranki,1] += 1
-            pulse.pulse = txtsize[ranki,1]
+      if rank < npws: # timeseries is ready for signal search
+         if rank == 0:
+            print 'Thresholding time-series to search for bursts.'
+
+         ndown = 2**rank # decimate the time series
+         sn[:],mean,rms = Threshold(Decimate_ts(tsMerge,ndown),thresh,niter=0)
+
+         if rank == 0:
+            print 'Outputing found signals'
+
+         # Record all pulses above threshold in the section searched by this process.
+         for one in np.where(sn != -1)[0]:
+            txtsize[rank,1] += 1
+            pulse.pulse = txtsize[rank,1]
             pulse.SNR = sn[one]
             pulse.DM = DM
             pulse.time = one*tInt*ndown
@@ -400,14 +385,18 @@ if __name__ == '__main__':
             pulse.nu = cent_freq
             pulse.mean = mean
             pulse.rms = rms
-            outfile.write(pulse.formatter.format(pulse)[:-1]) 
-            if txtsize[ranki,1] >200000*txtsize[ranki,0]:
-               outfile.close()
-               txtsize[ranki,0]+=1
-               filename = "ppc_SNR_pol_%.1i_td_%.2i_no_%.05d.txt" % (pol,ranki,txtsize[ranki,0])
-               outfile = open(filename,'a')
+            outfile.Write_Ordered(pulse.formatter.format(pulse)[:-1]) 
+            #if txtsize[ranki,1] >200000*txtsize[ranki,0]:
+            #   outfile.close()
+            #   txtsize[ranki,0]+=1
+            #   filename = "ppc_SNR_pol_%.1i_td_%.2i_no_%.05d.txt" % (pol,ranki,txtsize[ranki,0])
+            #   outfile = open(filename,'a')
             # endif
-         # end for
+         # end for one in ones
+         if rank == 0:
+            print 'Proceeding to next file set'
       # endif
-   # end for
+   # end for DM in DMtrials
+
+   outfile.Close()
 # end main
