@@ -6,6 +6,18 @@
 import os
 import sys
 import numpy
+from mpi4py import MPI
+
+
+def atProcMessage(msg, root=0):
+   if root == MPI.COMM_WORLD.Get_rank():
+      print 'From process {rank}:'.format(rank=root), msg
+   # endfi
+# end atProcMessage()
+
+def procMessage(msg):
+   print 'Process {rank}:'.format(rank=MPI.COMM_WORLD.Get_rank()), msg
+# end procMessage()
 
 def clipValue(inValue, lower, upper, valueType=None):
    # CCY - NOTE: while this works, it needs to be smarter about checking that the type specified is a

@@ -28,7 +28,7 @@
 shopt -s extglob
 
 
-# Helper function to clean up files.
+# Helper functions to clean up files.
 function delete_files()
 {
    local FILES=("${@}")
@@ -39,6 +39,42 @@ function delete_files()
    done
 }
 # end delete_files()
+#
+function transfer_results()
+{
+   local WORK_DIR="."
+   local RESULTS_DIR="."
+
+   if [ ${#} -gt 0]; then
+      while [ -n "${1}" ]
+      do
+         case "${1}" in
+            -w | --work-dir)
+               WORK_DIR="${2}"
+               shift; shift
+               ;;
+            -r | --results-dir)
+               RESULTS_DIR="${2}"
+               shift; shift
+               ;;
+            *)
+               shift
+               ;;
+         esac
+      done
+   fi
+
+   if [ "${WORK_DIR} != "${RESULTS_DIR} ]; then
+      echo "Transferring results from ${WORK_DIR} to ${RESULTS_DIR}..."
+      mv "${WORK_DIR}/lowspectrogram.png" "${RESULTS_DIR}/lowspectrogram.png"
+      mv "${WORK_DIR}/highspectrogram.png" "${RESULTS_DIR}/highspectrogram.png"
+      mv "${WORK_DIR}/lowbandpass" "${RESULTS_DIR}/lowbandpass"
+      mv "${WORK_DIR}/highbandpass.png" "${RESULTS_DIR}/highbandpass.png"
+      mv "${WORK_DIR}/*.txt" "${RESULTS_DIR}/*.txt"
+   fi
+}
+# end transfer_results()
+
 
 
 # Set the default install path.  NOTE: the string 'OPT-INSTALL_DIR' is replaced by the git-export.sh
@@ -83,6 +119,10 @@ radiotrans.sh
 
       -m | --memory-limit <num>:    Memory limit, in MBs, per MPI process during the de-dispersive
                                     search.
+
+      --dm-start <num>:             Starting dispersion-measure trial value.
+
+      --dm-end <num>:               Ending dispersion-measure trial value.
 '
 
 AFFIRMATIVE='^(y|yes|yup|yea|yeah|ya)$'
@@ -102,6 +142,10 @@ NUM_SAMPLESPERSEC=0  # Number of spectral samples per second to extract in the w
                      
 NUM_PROCS=$(nproc --all)   # Number of concurrent processes to use under MPI
 MEM_LIMIT=16      # Memory limit, in MBs, per MPI process when performing the de-dispersive search.
+DM_START=300      # Starting dispersion-measure trial value.
+DM_END=2000       # Ending dispersion-measure trial value.
+WORK_DIR="."      # Working directory.
+RESULTS_DIR="."   # Results directory.
 
 
 # Parse command-line arguments.
@@ -147,6 +191,22 @@ if [[ ${#} -gt 0 ]]; then
             if [ ${MEM_LIMIT} -lt 1 ]; then
                MEM_LIMIT=1
             fi
+            shift; shift
+            ;;
+         --dm-start) # Specify the starting dispersion-measure trial value.
+            DM_START=${2}
+            shift; shift
+            ;;
+         --dm-end) # Specify the ending dispersion-measure trial value.
+            DM_END=${2}
+            shift; shift
+            ;;
+         --work-dir) # Specify the working directory.
+            WORK_DIR="${2}"
+            shift; shift
+            ;;
+         --results-dir) # Specify the results directory.
+            RESULTS_DIR="${2}"
             shift; shift
             ;;
          -*) # Unknown option
@@ -197,6 +257,19 @@ else
    exit 1
 fi
 
+# Check that the working directory exists.
+if [ ! -d "${WORK_DIR}" ]; then
+   echo "ERROR: radiotrans.sh -> working directory does not exist.  User may need to create it."
+   echo "     ${WORK_DIR}"
+   exit 1
+fi
+# Check that the results directory exists.
+if [ ! -d "${RESULTS_DIR}" ]; then
+   echo "ERROR: radiotrans.sh -> results directory does not exist.  User may need to create it."
+   echo "     ${RESULTS_DIR}"
+   exit 1
+fi
+
 
 # Source the resume functionality.
 source ${INSTALL_PATH}/resume.sh
@@ -222,6 +295,7 @@ LBL_FREQTINT="FrequencyTimeIntegration"
 LBL_RFICUT="SmoothRFIBandpass"
 LBL_DEDISPERSLOW="De-dispersion_Low"
 LBL_DEDISPERSHIGH="De-dispersion_High"
+LBL_RESULTS="TransferResults"
 LBL_CLEAN1="Cleanup1"
 LBL_CLEAN2="Cleanup2"
 LBL_CLEAN2B="Cleanup2B"
@@ -235,7 +309,7 @@ LBL_CLEAN3="Cleanup3"
 echo "    Generating coarse spectral samples for coarse spectrogram from ${DATA_PATH}..."
 resumecmd -l ${LBL_WATERFALL1} mpirun -np ${NUM_PROCS} python ${INSTALL_PATH}/waterfall.py \
    --integrate-time ${SPECTINTEGTIME} --samples ${NUM_SAMPLES} \
-   --samples-per-sec ${NUM_SAMPLESPERSEC} "${DATA_PATH}"
+   --samples-per-sec ${NUM_SAMPLESPERSEC} --work-dir ${WORK_DIR} "${DATA_PATH}"
 report_resumecmd
 
 
@@ -244,13 +318,14 @@ echo "    Combining coarse spectral sample files into singular coarse spectrogra
 COMBWATERFALL="combined_waterfall"
 resumecmd -l ${LBL_COMBINE} -k ${RESUME_LASTCMD_SUCCESS} \
    mpirun -np 1 python ${INSTALL_PATH}/waterfallcombine.py \
-   --outfile "${COMBWATERFALL}" "${DATA_PATH}"
+   --outfile "${WORK_DIR}/${COMBWATERFALL}" --work-dir "${WORK_DIR}" "${DATA_PATH}"
 report_resumecmd
 
 
 echo "Cleaning up coarse spectrogram files (this may take a few minutes)..."
 DATAFILENAME=$(basename ${DATA_PATH})
-resumecmd -l ${LBL_CLEAN1} -k ${RESUME_LASTCMD_SUCCESS} delete_files "./waterfall${DATAFILENAME%.*}*.npy"
+resumecmd -l ${LBL_CLEAN1} -k ${RESUME_LASTCMD_SUCCESS} \
+   delete_files "${WORK_DIR}/waterfall${DATAFILENAME%.*}*.npy"
 report_resumecmd
 
 
@@ -299,23 +374,23 @@ if [[ ${RESUME_LASTCMD_SUCCESS} -ne 0 ]]; then
       resumecmd -l ${LBL_BANDPASS} -k ${RESUME_LASTCMD_SUCCESS} -s ${RESUME_REPEAT} \
          mpirun -np 1 python ${INSTALL_PATH}/bandpasscheck.py --low-tuning-lower ${LOW_FCL} \
          --low-tuning-upper ${LOW_FCH} --high-tuning-lower ${HIGH_FCL} \
-         --high-tuning-upper ${HIGH_FCH} "${COMBWATERFALL}.npy"
+         --high-tuning-upper ${HIGH_FCH} --work-dir ${WORK_DIR} "${WORK_DIR}/${COMBWATERFALL}.npy"
       report_resumecmd
 
       echo "    Generating spectrogram plots..."
       resumecmd -l ${LBL_SPECTROGRAM} -k ${RESUME_LASTCMD_SUCCESS} -s ${RESUME_REPEAT} \
          mpirun -np 1 python ${INSTALL_PATH}/watchwaterfall.py --low-tuning-lower ${LOW_FCL} \
          --low-tuning-upper ${LOW_FCH} --high-tuning-lower ${HIGH_FCL} \
-         --high-tuning-upper ${HIGH_FCH} "${COMBWATERFALL}.npy"
+         --high-tuning-upper ${HIGH_FCH} --work-dir ${WORK_DIR} "${WORK_DIR}/${COMBWATERFALL}.npy"
       report_resumecmd
 
       # Display the plots if selected by the user.
       if [[ "${USE_PLOTS}" =~ ${AFFIRMATIVE} ]]; then 
-         display lowbandpass.png &
-         display highbandpass.png &
+         display "${WORK_DIR}/lowbandpass.png" &
+         display "${WORK_DIR}/highbandpass.png" &
 
-         display lowspectrogram.png &
-         display highspectrogram.png &
+         display "${WORK_DIR}/lowspectrogram.png" &
+         display "${WORK_DIR}/highspectrogram.png" &
       fi
 
       echo "     Do you wish to change the bandpass region? [y/n] "
@@ -362,42 +437,57 @@ echo "     Generating time-series information for de-dispersion..."
 resumecmd -l ${LBL_FREQTINT} ${RESUME_FORCE_OPT} -k ${RESUME_LASTCMD_SUCCESS} \
    mpirun -np 1 python ${INSTALL_PATH}/freqtint.py "${DATA_PATH}" \
    --low-tuning-lower ${LOW_FCL} --low-tuning-upper ${LOW_FCH} \
-   --high-tuning-lower ${HIGH_FCL} --high-tuning-upper ${HIGH_FCH}
+   --high-tuning-lower ${HIGH_FCL} --high-tuning-upper ${HIGH_FCH} --work-dir ${WORK_DIR}
 report_resumecmd
 
 
 # Generate the detailed spectrogram.
 echo "    Generating detailed spectral samples for de-dispersion from ${DATA_PATH}..."
-resumecmd -l ${LBL_WATERFALL2} ${RESUME_FORCE_OPT} mpirun -np ${NUM_PROCS} \
-   python ${INSTALL_PATH}/waterfall.py \
+resumecmd -l ${LBL_WATERFALL2} ${RESUME_FORCE_OPT} -k ${RESUME_LASTCMD_SUCCESS} \
+   mpirun -np ${NUM_PROCS} python ${INSTALL_PATH}/waterfall.py \
    --integrate-time ${SPECTINTEGTIME} --samples ${NUM_SAMPLES} \
-   --samples-per-sec ${NUM_SAMPLESPERSEC} --detailed "${DATA_PATH}"
+   --samples-per-sec ${NUM_SAMPLESPERSEC} --detailed --work-dir ${WORK_DIR} "${DATA_PATH}"
 report_resumecmd
 
 
 # Perform data smoothing, RFI cleaning, and bandpass filtering of detailed spectrogram.
-resumecmd -l ${LBL_RFICUT} ${RESUME_FORCE_OPT} mpirun -np ${NUM_PROCS} \
-   python ${INSTALL_PATH}/rficut.py "${DATA_PATH}" \
+echo "    Performing data smoothing, RFI cleaning, and bandpass filtering of detailed spectrogram..."
+resumecmd -l ${LBL_RFICUT} ${RESUME_FORCE_OPT} -k ${RESUME_LASTCMD_SUCCESS} \
+   mpirun -np ${NUM_PROCS} python ${INSTALL_PATH}/rficut.py "${DATA_PATH}" \
    --low-tuning-lower ${LOW_FCL} --low-tuning-upper ${LOW_FCH} \
    --high-tuning-lower ${HIGH_FCL} --high-tuning-upper ${HIGH_FCH} \
-   --bandpass-window 10 --baseline-window 50
+   --bandpass-window 10 --baseline-window 50 --work-dir ${WORK_DIR}
 report_resumecmd
+
+#PROFILE="${RESULTS_DIR}/rficut_profile"
+#resumecmd -l ${LBL_RFICUT} ${RESUME_FORCE_OPT} -k ${RESUME_LASTCMD_SUCCESS} \
+#   mpirun -np 1 python -m cProfile -o "${PROFILE}" ${INSTALL_PATH}/rficut.py "${DATA_PATH}" \
+#   --low-tuning-lower ${LOW_FCL} --low-tuning-upper ${LOW_FCH} \
+#   --high-tuning-lower ${HIGH_FCL} --high-tuning-upper ${HIGH_FCH} \
+#   --bandpass-window 10 --baseline-window 50 --work-dir ${WORK_DIR}
+#report_resumecmd
 
 
 # Perform the de-dispersion for each of the tunings.
 echo "     Performing de-dispersion on low tuning data..."
+#NUM_PROCS=1
 resumecmd -l ${LBL_DEDISPERSLOW} ${RESUME_FORCE_OPT} -k ${RESUME_LASTCMD_SUCCESS} \
    mpirun -np ${NUM_PROCS} python ${INSTALL_PATH}/dv.py "${DATA_PATH}" \
-   --lower ${LOW_FCL} --upper ${LOW_FCH} --tuning 0 --frequency-file "lowtunefreq.npy" \
+   --lower ${LOW_FCL} --upper ${LOW_FCH} --tuning 0 --frequency-file "${WORK_DIR}/lowtunefreq.npy" \
    --integration-time ${SPECTINTEGTIME} --memory-limit ${MEM_LIMIT} \
-   --samples-per-sec ${NUM_SAMPLESPERSEC}
+   --samples-per-sec ${NUM_SAMPLESPERSEC} --dm-start ${DM_START} --dm-end ${DM_END} \
+   --work-dir ${WORK_DIR}
 report_resumecmd
+
+exit 1 # Debugging short-circuit
+
 echo "     Performing de-dispersion on high tuning data..."
 resumecmd -l ${LBL_DEDISPERSHIGH} ${RESUME_FORCE_OPT} -k ${RESUME_LASTCMD_SUCCESS} \
    mpirun -np ${NUM_PROCS} python ${INSTALL_PATH}/dv.py "${DATA_PATH}" \
-   --lower ${HIGH_FCL} --upper ${HIGH_FCH} --tuning 1 --frequency-file "hightunefreq.npy" \
+   --lower ${HIGH_FCL} --upper ${HIGH_FCH} --tuning 1 --frequency-file "${WORK_DIR}/hightunefreq.npy" \
    --integration-time ${SPECTINTEGTIME} --memory-limit ${MEM_LIMIT} \
-   --samples-per-sec ${NUM_SAMPLESPERSEC}
+   --samples-per-sec ${NUM_SAMPLESPERSEC} --dm-start ${DM_START} --dm-end ${DM_END} \
+   --work-dir ${WORK_DIR}
 report_resumecmd
 
 
@@ -405,13 +495,22 @@ report_resumecmd
 # up a lot of disk space.  Also, cleanup an other intermediate files that we no longer need.
 echo "Cleaning up detailed spectrogram files (this may take quite a while)..."
 DATAFILENAME=$(basename ${DATA_PATH})
-resumecmd -l ${LBL_CLEAN2} -k ${RESUME_LASTCMD_SUCCESS} delete_files "./master0${DATAFILENAME%.*}*.npy"
-resumecmd -l ${LBL_CLEAN2B} -k ${RESUME_LASTCMD_SUCCESS} delete_files "./master1${DATAFILENAME%.*}*.npy"
+resumecmd -l ${LBL_CLEAN2} -k ${RESUME_LASTCMD_SUCCESS} ${RESUME_FORCE_OPT} \
+   delete_files "${WORK_DIR}/master0_${DATAFILENAME%.*}*.npy"
+resumecmd -l ${LBL_CLEAN2B} -k ${RESUME_LASTCMD_SUCCESS} ${RESUME_FORCE_OPT} \
+   delete_files "${WORK_DIR}/master1_${DATAFILENAME%.*}*.npy"
 report_resumecmd
 echo "Cleaning up other files..."
 DATAFILENAME=$(basename ${DATA_PATH})
-resumecmd -l ${LBL_CLEAN3} -k ${RESUME_LASTCMD_SUCCESS} rm -f "./lowtunefreq.npy" \
-   "./hightunefreq.npy" "./tint.npy"
+resumecmd -l ${LBL_CLEAN3} -k ${RESUME_LASTCMD_SUCCESS} ${RESUME_FORCE_OPT} \
+   rm -f "${WORK_DIR}/lowtunefreq.npy" "${WORK_DIR}/hightunefreq.npy" \
+         "${WORK_DIR}/tint.npy" "${WORK_DIR}/${COMBWATERFALL}.npy"
+report_resumecmd
+
+
+# Transfer results to the results directory.
+resumecmd -l ${LBL_CLEAN3} -k ${RESUME_LASTCMD_SUCCESS} ${RESUME_FORCE_OPT} \
+   transfer_results --work-dir "${WORK_DIR}" --results-dir "${RESULTS_DIR}"
 report_resumecmd
 
 echo "Radio transient workflow done!"

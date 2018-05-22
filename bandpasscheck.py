@@ -28,7 +28,11 @@ cmdlnParser.add_option('-z', '--high-tuning-upper',dest='highTuneUpper', default
                         action='store',
                         help='Upper FFT index (between 0 and 4095) for the high tuning frequency.',
                         metavar='INDEX')
+cmdlnParser.add_option("-w", "--work-dir", dest="workDir", default=".",
+                       action="store",
+                       help="Working directory path.", metavar="PATH")
 (cmdlnOpts, cmdlnArgs) = cmdlnParser.parse_args()
+workDir = cmdlnOpts.workDir
 # Check that a combined waterfall file has been provided and that it exists.
 if len(cmdlnArgs[0]) > 0:
    if not os.path.exists(cmdlnArgs[0]):
@@ -60,18 +64,18 @@ if Hfch <= Hfcl:
 #
 # Low frequency bandpass.
 sp = np.load(cmdlnArgs[0])
-plt.plot(sp[:,0,Lfcl:Lfch].mean(0))
+plt.plot(sp[:,0,Lfcl:(Lfch + 1)].mean(0))
 plt.suptitle('Bandpass Low Tuning', fontsize = 30)
 plt.ylabel('Intensity',fontdict={'fontsize':16})
 plt.xlabel('Frequency',fontdict={'fontsize':14})
-plt.savefig('lowbandpass')
+plt.savefig('{dir}/lowbandpass'.format(dir=workDir))
 plt.clf()
 # High frequency bandpass.
-plt.plot(sp[:,1,Hfcl:Hfch].mean(0))
+plt.plot(sp[:,1,Hfcl:(Hfch + 1)].mean(0))
 plt.suptitle('Bandpass High Tuning', fontsize = 30)
 plt.ylabel('Intensity',fontdict={'fontsize':16})
 plt.xlabel('Frequency',fontdict={'fontsize':14})
-plt.savefig('highbandpass')
+plt.savefig('{dir}/highbandpass'.format(dir=workDir))
 plt.clf()
 
 exit(0)

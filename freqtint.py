@@ -27,6 +27,9 @@ def main(args):
                            action="store",
                            help="Upper FFT (between 0 and 4095) index for the high tuning.", 
                            metavar="INDEX")
+   cmdlnParser.add_option("-w", "--work-dir", dest="workDir", default=".",
+                          action="store",
+                          help="Working directory path.", metavar="PATH")
    
    # Parse command-line for FFT indices and the radio data file path.
    (cmdlnOpts, cmdlnParams) = cmdlnParser.parse_args()
@@ -35,6 +38,7 @@ def main(args):
    Hfcl = forceIntValue(cmdlnOpts.Hfcl, 0, 4095)
    Hfch = forceIntValue(cmdlnOpts.Hfch, 0, 4095)
    inFilepath = cmdlnParams[0]
+   workDir = cmdlnOpts.workDir
 
    # Validate command-line inputs.
    if Lfch <= Lfcl:
@@ -120,9 +124,9 @@ def main(args):
          high=freq1[Lfch],tuning=centralFreq1)
    print 'High freq bandpass = {low} - {high} Hz at tuning {tuning} Hz'.format(low=freq2[Hfcl],
          high=freq2[Hfch],tuning=centralFreq2)
-   numpy.save('tInt',tInt)
-   numpy.save('lowtunefreq',freq1)
-   numpy.save('hightunefreq',freq2)
+   numpy.save('{dir}/tInt'.format(dir=workDir), tInt)
+   numpy.save('{dir}/lowtunefreq'.format(dir=workDir), freq1)
+   numpy.save('{dir}/hightunefreq'.format(dir=workDir), freq2)
 
    inFile.close()
 # end main()

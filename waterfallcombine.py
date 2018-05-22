@@ -19,14 +19,20 @@ cmdlnParser.add_option('-o','--outfile', dest='outFilepath', default='waterfall'
                         action='store',
                         help='Path to the output file (do not include the .npy extension)',
                         metavar='FILEPATH')
+cmdlnParser.add_option('-w','--work-dir', dest='workDir', default='.', type='string',
+                        action='store',
+                        help='Working directory path.',
+                        metavar='PATH')
+
 (cmdlnOpts, cmdlnArgs) = cmdlnParser.parse_args()
+workDir = cmdlnOpts.workDir
 # Make sure that a path to the original data file has been provided.
 if len(cmdlnArgs[0]) == 0:
    print('Path to the original data file must be provided to determine waterfall filename pattern.')
    exit(1)
 # endif
 filename = os.path.basename(os.path.splitext(cmdlnArgs[0])[0])
-filenamePattern = 'waterfall{name}*.npy'.format(name=filename)
+filenamePattern = '{dir}/waterfall{name}*.npy'.format(dir=workDir, name=filename)
 waterfallFilenames = sorted(glob.glob(filenamePattern))
 
 numFiles = len(waterfallFilenames)
