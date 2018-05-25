@@ -9,15 +9,17 @@ import numpy
 from mpi4py import MPI
 
 
-def atProcMessage(msg, root=0):
-   if root == MPI.COMM_WORLD.Get_rank():
-      print 'From process {rank}:'.format(rank=root), msg
-   # endfi
-# end atProcMessage()
 
-def procMessage(msg):
-   print 'Process {rank}:'.format(rank=MPI.COMM_WORLD.Get_rank()), msg
+def procMessage(msg, root=-1):
+   if root == -1 or root == MPI.COMM_WORLD.Get_rank():
+      print 'From process {rank}:'.format(rank=MPI.COMM_WORLD.Get_rank()), msg
+   # endif
 # end procMessage()
+
+def atProcMessage(msg, root=0):
+   # CCY - TODO: Deprecrate use of this function.
+   procMessage(msg, root=root)
+# end atProcMessage()
 
 def clipValue(inValue, lower, upper, valueType=None):
    # CCY - NOTE: while this works, it needs to be smarter about checking that the type specified is a

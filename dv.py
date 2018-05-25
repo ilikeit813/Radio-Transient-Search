@@ -8,7 +8,7 @@ import time
 import sys
 import getopt
 from optparse import OptionParser
-from apputils import forceIntValue, clipValue, procMessage, atProcMessage
+from apputils import forceIntValue, clipValue, procMessage, procMessage
 import drx
 
 
@@ -304,6 +304,8 @@ def main_routine():
 
    # Compute the initial range of file indices that need to be used for the first decimation region of
    # the de-dispersed time-series.
+   # CCY - TODO: Pull this segment of code into a separate utility in the workflow to allow setting the
+   # DM range from within the workflow.
 #  nFramesDecimation = nDecimation*nFFTsPerFile 
 #  DMtrials = np.array([10, 20, 50, 100, 200, 500, 1000, 1500, 1600, 1700, 1800, 1900, 2000, 
 #                       3000, 4000, 5000], dtype=np.float)
@@ -328,7 +330,8 @@ def main_routine():
    # Compute the maximum dispersion measure supported by the maximum file load.
    invScaledDelay = 1.0/scaledDelay(freq[0], freq[-1])
    DM_max = ((nFilesPerSpan*nDecimation + 1)*nFFTsPerFile - 1)*tInt*invScaledDelay
-   print 'Maximum supported dispersion measure given memory constraints =', DM_max, 'pc cm^-3.'
+   procMessage('Maximum supported dispersion measure ' + \
+               'given memory constraints = {dm} pc cm^-3'.format(dm=DM_max), root=0)
 
    # Clip the start and end dispersion measures to the maximum.  We simply can't do better than this due
    # to memory limitations.
@@ -336,7 +339,7 @@ def main_routine():
    DMend = min(DMend, DM_max)
    # Build the array of dispersion-measure trials.
    DM = DMstart
-   atProcMessage('Generating DM trial values'.format(rank=rank), root=0)
+   procMessage('Generating DM trial values'.format(rank=rank), root=0)
    numLowerTrials = 0
    numUpperTrials = 0
    numTotalTrials = 0
@@ -382,57 +385,74 @@ def main_routine():
    pulseID = 0.0
 
 
-   # Allocate a shared array to hold the data loaded from files.
-   memSize = 0
+   fileIndex = 0
+   nFilesLoaded = 0
+   fileRingStart = 0
+   fileRing = None
+   datumSize = np.dtyp(np.float64).itemsize
+   # Prepare memory in process 0 to hold the loaded spectral files.  This memory will be read by the
+   # other processes to obtain the spectral sample data.
    if rank == 0:
-      memSize = nFilesPerSpan*4096*nFFTsPerFile*np.dtype(np.float64).itemsize
+      # Allocate the file ring to store the current block of spectral sample files.
+      memSize = nFilesPerSpan*4096*nFFTsPerFile*datumSize
+      memBuff = MPI.Alloc_mem(memSize)
+      fileRing = np.ndarray(buffer=memBuff, dtype=np.float64, 
+                            shape=(nFilesPerSpan, numFreqs, spect.shape[1]))
+      # Load initial files into the file ring.
+      procMessage('Loading initial set of spectral sample files into data ring.', root=0)
+      while fileIndex < numFiles and nFilesLoaded < nFilesPerSpan:
+         procMessage('Loading file {index} into data ring.'.format(index=fileIndex), root=0)
+         ringIndex = (fileIndex + fileRingStart) % fileRingSize
+         fileRing[ringIndex, : , : ] = np.load(fn[fileIndex])
+         fileIndex = fileIndex + 1
+         nFilesLoaded = nFilesLoaded + 1
+      # end while
+      fileIndex = fileIndex - 1
    # endif
-   sharedMem = MPI.Win.Allocate_shared(memSize, np.dtype(np.float64).itemsize, comm=comm)
-   memBuff, itemsize = sharedMem.Shared_query(0)
-   fileData = np.ndarray(buffer=memBuff, dtype=np.float64, 
-                         shape=(nFilesPerSpan, numFreqs, spect.shape[1]))
-   # Loop over files being processed by this process.
-   numFileSpans = int(numFiles/nFilesPerSpan)
-   if numFilesSpans*nFilesPerSpan < numFiles:
-      numFileSpans = numFilesSpans + 1
-   # endif
-   for spanIndex in np.arange(numFileSpans):
-      fileStartIndex = spanIndex*nFilesPerSpan
-      fileEndIndex = min(fileStartIndex + nFilesPerSpan, numFiles)
-      numLoadedFiles = fileEndIndex - fileStartIndex
-      # Have process 0 load files into the fileData array.
-      atProcMessage('Loading files for span index = {index}.'.format(index=spanIndex), root=0)
-      if rank == 0:
-         for fileIndex in np.arange(fileStartIndex, fileEndIndex):
-            dataIndex = fileIndex - fileStartIndex
-            fileData[fileDataIndex, : , : ] = np.load(fn[fileIndex])
-         # end for fileIndex in np.arange(fileStartIndex, fileEndIndex):
-      # endif
-      comm.Barrier() # Wait here till process 0 finishes loading files.
-      
+   rmaWin = MPI.Win.Create(fileRing, datumSize, comm=comm)
+   fileIndex = comm.bcast(fileIndex, root=0)
+   fileRingStart = comm.bcast(fileRingStart, root=0)
+   nFilesLoaded = comm.bcast(nFilesLoaded, root=0)
+
+
+   rmaWin.Fence()
+   spectSample = np.zeros((4096, nFFTsPerFile), dtype=np.float64) # Preallocate spectral sample.
+   blockIndex = 0
+   # Loop over spectral sample files.
+   while fileIndex < numFiles:
       # Loop over DM trials.
       for DM in procTrials:
+         # Compute the time-indexed delay for each frequency at the current DM.
          indexDelay[:] = np.int64(delay2(freq, freqHigh, DM)/tInt + 0.5)
          # Loop over the loaded files and perform de-dispersion on their data.
-         atProcMessage('De-dispersing with DM = {dm}'.format(dm=DM), root=0)
-         for fileIndex in np.arange(numLoadedFiles):
-            beginIndex = fileIndex*nDecimation*nFFTsPerFile - indexDelay
+         procMessage('De-dispersing block {block} with DM = {dm}'.format(block=blockIndex, dm=DM))
+         for spectIndex in np.arange(nFilesLoaded):
+            # Copy the current spectral sample from the memory buffer of loaded samples.
+            ringIndex = (spectIndex + fileRingStart) % nFilesPerSpan
+            memOffset = ringIndex*nFFTsPerFile*4096
+            rmaWin.Get(origin=[spectSample, spectSample.size, datumSize], 
+                       target_rank=0, 
+                       target=[memOffset, spectSample.size, datumSize])
+            
+            # Compute the time-indexed boundaries in the de-dispersed time-series to which each
+            # frequency in the current sample de-disperses. Truncate any parts that don't overlap.
+            beginIndex = spectIndex*nDecimation*nFFTsPerFile - indexDelay
             endIndex = np.maximum(beginIndex + nFFTsPerFile, 0)
             cutIndex = np.maximum(-beginIndex, 0)
             beginIndex = np.maximum(beginIndex, 0)
             indices = np.nonzero( endIndex > 0 )[0]
-            # Perform the de-dispersion if there are parts of the file that will remain in the time-series
-            # after de-dispersion.
+            # De-disperse the power at each frequency in the spectral sample.
             for i in indices:
-               ts[ beginIndex[i] : endIndex[i] ] += fileData[fileIndex, i, cutIndex[i] : ]
+               ts[ beginIndex[i] : endIndex[i] ] += spectSample[i, cutIndex[i] : ]
             # end for i in indices:
          # end for fileIndex in np.arange(numLoadedFiles):
 
-         atProcMessage('Thresholding de-dispersed SNR power', root=0)
+         procMessage('Thresholding de-dispersed SNR power for DM = {dm}'.format(dm=DM))
          (snr[:], mean, std) = Threshold(ts, thresh, niter=0)
 
          # Record all pulses above threshold in the section searched by this process.
-         atProcMessage( 'Outputing found signals', root=0)
+         procMessage('Outputing found signals for DM = {dm}'.format(dm=DM))
+         fileStartIndex = (fileIndex + 1) - nFilesLoaded 
          timeIndexOffset = np.minimum(fileStartIndex*nDecimation*nFFTsPerFile - indexDelay[0], 0)
          pulseTimeIndices = np.nonzero( snr != -1 )[0]
          for index in pulseTimeIndices:
@@ -446,18 +466,34 @@ def main_routine():
             pulse.nu = cent_freq
             pulse.mean = mean
             pulse.std = std
-            atProcMessage('Writing pulse at time index = {index}'.format(index=index))
             outfile.Iwrite_shared( pulse.str() )
          # end for one in ones
-         atProcMessage( 'Done Outputing found signals', root=0)
+         procMessage('Done Outputing found signals for DM = {dm}'.format(dm=DM))
 
          # Reset the de-dispersed time-series.
-         atProcMessage('Reseting time series', root =0 )
+         procMessage('Reseting cached time series')
          ts.fill(0.0)
          snr.fill(0.0)
       # end for DM in procTrials:
-   # end for spanIndex in np.arange(numFileSpans):
+      #
+      # Have process 0 load the next file into the ring
+      fileRingStart = fileRingStart + 1
+      fileIndex = fileIndex + 1
+      rmaWin.Fence()
+      if rank == 0 and fileIndex < numFiles:
+         procMessage('Loading file {index} into data ring.'.format(index=fileIndex), root=0)
+         ringIndex = (nFilesLoaded + fileRingStart - 1) % nFilesPerSpan
+         fileRing[ringIndex, : , : ] = np.load(fn[fileIndex])
+      # endif
+      rmaWin.Fence()
+   # end while fileIndex <= numFiles
+   #
+   rmaWin.Free()
+   if rank == 0:
+      MPI.Free_mem(memBuff)
+   # endif
    outfile.Close()
+   procMessage('Done with de-dispersion.')
 # end main
 
 
