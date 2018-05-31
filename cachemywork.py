@@ -25,7 +25,7 @@ if workDir != cacheDir:
    # endif
    workFilepaths = glob.glob('{dir}/*.*'.format(dir=workDir))
    workFilenames = map(lambda x: os.path.split(x)[1], workFilepaths)
-   cachFilepaths = map(lambda x: '{dir}/{name}'.format(dir=cacheDir, name=x), workFilenames)
+   cacheFilepaths = map(lambda x: '{dir}/{name}'.format(dir=cacheDir, name=x), workFilenames)
 
    nCount = 0
    numFiles = len(workFilepaths)
@@ -35,7 +35,7 @@ if workDir != cacheDir:
       if os.path.exists(workPath):
          print 'Copying ', workPath
          shutil.copy(workPath, cachePath)
-         if not os.path.exists(cachePath):
+         if os.path.exists(cachePath):
             nCount = nCount + 1
             print 'Copy SUCCESS'
          else:

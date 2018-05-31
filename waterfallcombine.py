@@ -36,7 +36,7 @@ filenamePattern = '{dir}/waterfall{name}*.npy'.format(dir=workDir, name=filename
 waterfallFilenames = sorted(glob.glob(filenamePattern))
 
 numFiles = len(waterfallFilenames)
-waterfallFilenames = PyDecimate(waterfallFilenames, numFiles/6000)
+waterfallFilenames = PyDecimate(waterfallFilenames, numFiles/10000)
 numFiles = len(waterfallFilenames)
 if numFiles > 0:
    sample = np.load(waterfallFilenames[0])
