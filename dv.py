@@ -2,6 +2,7 @@ from mpi4py import MPI
 import disper
 import sys
 import numpy as np
+import scipy.sparse as spsparse
 import glob
 import os
 import time
@@ -296,7 +297,7 @@ def main_routine():
    #
    nSamplesProc = int(nSamples/nProcs)          # Number of samples each MPI process extracts.
 
-   nDecimation = max(int(nSamplesFile/nSamples), int(1))    # Decimation.
+   nDecimation = int(max(nSamplesFile/nSamples, 1 ))    # Decimation.
 
 
    # Compute the initial range of file indices that need to be used for the first decimation region of
@@ -321,7 +322,8 @@ def main_routine():
 
 
    # Compute the maximum range of files that can be loaded given the memory constraints.
-   nFilesPerSpan = int(memLimit*(1024**2)/spectFileSize)
+   nFilesPerSpan = int(memLimit*(1024**2)/(spectFileSize/2.0)) # Files are float64, but we are using
+                                                               # float32 arrays.
    numFiles = len(fn)
    
    # Compute the maximum dispersion measure supported by the maximum file load.
@@ -329,7 +331,7 @@ def main_routine():
    DM_max = ((nFilesPerSpan*nDecimation + 1)*nFFTsPerFile - 1)*tInt*invScaledDelay
    # Warn user of the maximum and request if computation should proceed, regardless.
    procMessage('WARNING: Maximum supported dispersion measure ' + \
-               'given memory constraints = {dm} pc cm^-3'.format(dm=DM_max), root=0)
+               'given memory constraints = {dm:.3f} pc cm^-3'.format(dm=DM_max), root=0)
    procMessage('DM trials start and end will be truncated to this maximum, if necessary.', root=0)
    procMessage('Current requested DM range is {start} to {end}.'.format(start=DMstart, end=DMend), root=0)
    procMessage('Proceed anyway [y/n]?', root=0)
@@ -368,7 +370,6 @@ def main_routine():
    DMtrials[:numLowerTrials] = DMtrials[:numLowerTrials]*0.1 + DMstart
    # DMtrials[numLowerTrials:numTotalTrials] += numLowerTrials*0.1 + DMstart - numLowerTrials
    DMtrials[numLowerTrials:numTotalTrials] += DMstart - 0.9*numLowerTrials
-
    # Get the DM trials to be executed by this process.
    nDMTrialsPerProc = int(numTotalTrials/nProcs)
    DMtrialStartIndex = rank*nDMTrialsPerProc
@@ -384,8 +385,9 @@ def main_routine():
    # Compute the largest segment of the de-dispersed time series we will see and allocate it.
    tsSize = ((nFilesPerSpan - 1)*nDecimation + 1)*nFFTsPerFile - \
                computeFrameIndexDelay(tInt, freq[-1], freqHigh, DMstart)
-   ts = np.zeros(tsSize, dtype=np.float64)
-   snr = np.zeros(tsSize, dtype=np.float64)
+   ts = np.zeros(tsSize, dtype=np.float32)
+   snr = np.zeros(tsSize, dtype=np.float32)
+   #tsIndices = np.arange(tsSize, dtype=np.int64)
 
    # Open a single output file that is shared amongst all the processes. 
    filename = "{dir}/ppc_SNR_pol_{tune}.txt".format(dir=workDir, tune=pol)
@@ -399,7 +401,7 @@ def main_routine():
    nFilesLoaded = 0
    fileRingStart = 0
    fileRing = None
-   datumSize = np.dtype(np.float64).itemsize
+   datumSize = np.dtype(np.float32).itemsize
    # Prepare memory in process 0 to hold the loaded spectral files.  This memory will be shared to the
    # other processes.
    membuff = None
@@ -407,7 +409,7 @@ def main_routine():
       # Allocate the memory buffer and reshape it into the needed file ring buffer.
       memsize = nFilesPerSpan*nFFTsPerFile*numFreqs*datumSize
       membuff = MPI.Alloc_mem(memsize)
-      fileRing = np.array(membuff, copy=False).view(dtype=np.float64).reshape(nFilesPerSpan, 
+      fileRing = np.array(membuff, copy=False).view(dtype=np.float32).reshape(nFilesPerSpan, 
                            numFreqs, nFFTsPerFile)
       # Load initial files into the file ring.
       procMessage('Loading initial set of spectral sample files into memory shared file ring.', root=0)
@@ -428,29 +430,46 @@ def main_routine():
    fileRingStart = comm.bcast(fileRingStart, root=0)
    nFilesLoaded = comm.bcast(nFilesLoaded, root=0)
 
-   # Perform the full de-dispersion and search for de-dispersed signals above threshold.
-   #
+   # == Precalculation and preallocation ==
    procMessage('Performing preallocation and precalculation.', root=0)
+   fftIndices = np.arange(nFFTsPerFile, dtype=np.int32)
+   freqIndices = np.arange(numFreqs, dtype=np.int32)
    # Preallocate the spectral sample cache.  Preallocate the spectral sample indices.  Preallocate the
    # DM indices.
-   spectSample = np.zeros((numFreqs, nFFTsPerFile), dtype=np.float64)
-   spectIndices = np.arange(nFilesLoaded, dtype=np.int64)
-   dmIndices = np.arange(len(procDMTrials), dtype=np.int64)
+   spectSample = np.zeros((numFreqs, nFFTsPerFile), dtype=np.float32)
+   spectIndices = np.arange(nFilesLoaded, dtype=np.int32)
+   dmIndices = np.arange(len(procDMTrials), dtype=np.int32)
 
-   # Preallocate the indexed-time delays for all DMs and frequencies.
-   scaleDelay = scaledDelay(freq, freqHigh)/tInt
-   indexDelay = np.array( map(lambda x: scaleDelay*x + 0.5, procDMTrials), dtype=np.int64, copy=False )
-   # Preallocate the beginning indexed-time offsets for the cached spectral samples.
-   offsetArray = np.ones(numFreqs, dtype=np.int64)*nDecimation*nFFTsPerFile
-   beginOffset = np.array( map(lambda x: offsetArray*x, spectIndices), copy=False)
-   # Preallocate arrays to hold the index boundaries for de-dispersing a spectral sample into the
-   # time-series.
-   beginIndex = np.empty(shape=(spectIndices.size, numFreqs), dtype=np.int64)
-   endIndex = np.empty(shape=(spectIndices.size, numFreqs), dtype=np.int64)
-   cutIndex = np.empty(shape=(spectIndices.size, numFreqs), dtype=np.int64)
-
+   # Preallocate the indexed-time delays for spectral samples at all relevant DMs and frequencies.
+   scaleDelay = scaledDelay(freq, freq[-1])/tInt
+   spectScaleDelay = scaledDelay(freq[-1], freqHigh)/tInt
+   freqIndexDelay = np.array( map(lambda x: scaleDelay*x + 0.5, procDMTrials), dtype=np.int32, copy=False )
+   freqDedispIndices = np.array( map(lambda x: freqIndexDelay[x] - freqIndexDelay[x][0], dmIndices),
+                                 dtype=np.int32, copy=False)
+   spectIndexDelay = np.array( spectScaleDelay*procDMTrials + 0.5, dtype=np.int32, copy=False )
+   # Preallocate de-dispersion arrays for de-dispersing a spectral sample.
+   dedispSize = np.array( map(lambda x: freqIndexDelay[x][0], dmIndices) ) + nFFTsPerFile
+   #dedispPower = np.zeros(dedispSize[-1], dtype=np.float32)
+   csrIndptr = np.arange(numFreqs + 1, dtype=np.int32)*nFFTsPerFile
+   csrIndices_init = np.tile(fftIndices, numFreqs)
+   csrIndices_dedisp = np.array( [ [csrIndices_init[x*nFFTsPerFile : (x + 1)*nFFTsPerFile] + \
+                                       freqDedispIndices[y][x] for x in freqIndices] \
+                                     for y in dmIndices ], dtype=np.int32, copy=False).reshape(
+                                     (dmIndices[-1] + 1, numFreqs*nFFTsPerFile) )
+   csrSpectSample = spsparse.csr_matrix((spectSample.flat, csrIndices_init, csrIndptr), 
+                                          shape=(numFreqs, dedispSize[-1]), dtype=np.float32, copy=False)
+   # Preallocate boundary indices for merging de-dispersed samples into the de-dispersed time-series.
+   offsetIndices = spectIndices*nDecimation*nFFTsPerFile
+   endIndices = np.array( map(lambda x: offsetIndices - spectIndexDelay[x], dmIndices), 
+                           dtype=np.int32, copy=False) + nFFTsPerFile
+   beginIndices = np.array( map(lambda x: endIndices[x][:] - freqIndexDelay[x][0] - nFFTsPerFile, 
+                                 dmIndices), 
+                              dtype=np.int32, copy=False)
+   cutIndices = np.maximum(-beginIndices, 0)
+   beginIndices = np.maximum(beginIndices, 0)
+   endIndices = np.maximum(endIndices, 0)
    blockIndex = 0
-   nFilesPerSpanArray = np.full(shape=spectIndices.shape, fill_value=nFilesPerSpan, dtype=np.int64)
+   nFilesPerSpanArray = np.full(shape=spectIndices.shape, fill_value=nFilesPerSpan, dtype=np.int32)
    nDoublesPerFile = nFFTsPerFile*numFreqs
    # Loop over spectral sample files.
    while fileIndex < numFiles:
@@ -458,31 +477,34 @@ def main_routine():
       # Loop over DM trials.
       for dmIndex in dmIndices:
          DM = procDMTrials[dmIndex]
-         # Loop over the loaded files and perform de-dispersion on their data.
-         procMessage('De-dispersing spectral block {block} with DM = {dm}'.format(block=blockIndex, 
+         procMessage('De-dispersing spectral block {block} with DM = {dm:.3f}'.format(block=blockIndex, 
                      dm=DM))
-         beginIndex = np.array( map(lambda x: beginOffset[x] - indexDelay[dmIndex], spectIndices ),
-                        copy=False)
-         endIndex = np.maximum(beginIndex + nFFTsPerFile, 0)
-         cutIndex = np.maximum(-beginIndex, 0)
-         beginIndex = np.maximum(beginIndex, 0)
+         # Loop over loaded spectral samples.
          for spectIndex in spectIndices:
             # Copy the current spectral sample from the memory buffer of loaded samples.
+            # CCY - NOTE: because we created csrSpectSample with the option copy=False, its data array
+            # points to the same memory region as spectSample.  So, changing the data values in
+            # spectSample automatically changes the values in csrSpectSample.  Thus, we avoid a copy
+            # step here.  Instead, we can just proceed to operate directly on csrSpectSample.
             rmaWin.Get(origin=(spectSample, spectSample.size, MPI.DOUBLE), 
                        target_rank=0, 
                        target=(ringIndex[spectIndex]*nDoublesPerFile, spectSample.size, 
                                  MPI.DOUBLE))
-            freqIndices = np.nonzero( endIndex[spectIndex][:] > 0 )[0]
-            for i in freqIndices:
-               tsBegin = beginIndex[spectIndex, i]
-               tsEnd = endIndex[spectIndex, i]
-               spectCut = cutIndex[spectIndex, i]
-               ts[ tsBegin : tsEnd ] += spectSample[i, spectCut : ]
-            # end for i in freqIndices:
+            # De-disperse the current spectral sample and add its de-dispersed power into the
+            # de-dispersed time-series.
+            if endIndices[dmIndex, spectIndex] > 0:
+               cutIndex = cutIndices[dmIndex, spectIndex]
+               sizeIndex = dedispSize[dmIndex]
+               csrSpectSample.indices = csrIndices_dedisp[dmIndex]
+               dedispPower = np.array(csrSpectSample.sum(axis=0), copy=False).reshape((dedispSize[-1],))
+               np.add(ts[ beginIndices[dmIndex, spectIndex] : endIndices[dmIndex, spectIndex] ], 
+                      dedispPower[cutIndex : sizeIndex],
+                      out=ts[ beginIndices[dmIndex, spectIndex] : endIndices[dmIndex, spectIndex] ])
+            # endif
          # end for spectIndex in spectIndices:
 
          procMessage('Thresholding de-dispersed SNR power and searching ' + \
-                     'for pulses at DM = {dm}'.format(dm=DM))
+                     'for pulses at DM = {dm:.3f}'.format(dm=DM))
          (snr[:], mean, std, pulseTimeIndices) = Threshold(ts, thresh, niter=0)
 
          # If there were pulses above threshold, record them.
@@ -490,7 +512,7 @@ def main_routine():
             fileStartIndex = (fileIndex + 1) - nFilesLoaded 
             timeIndexOffset = np.minimum(fileStartIndex*nDecimation*nFFTsPerFile - \
                                           indexDelay[dmIndex, -1], 0)
-            procMessage('Found {num} signals above threshold for DM = {dm}'.format(dm=DM,
+            procMessage('Found {num} signals above threshold for DM = {dm:.3f}'.format(dm=DM,
                         num=len(pulseTimeIndices)))
             procMessage('Outputting signals to results file.')
             for index in pulseTimeIndices:
@@ -508,7 +530,7 @@ def main_routine():
             # end for one in ones
             procMessage('Done outputting signals to results file.')
          else:
-            procMessage('No signals found above threshold for DM = {dm}'.format(dm=DM))
+            procMessage('No signals found above threshold for DM = {dm:.3f}'.format(dm=DM))
          # endif
 
          # Reset the de-dispersed time-series.

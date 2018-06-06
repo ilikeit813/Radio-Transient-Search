@@ -368,29 +368,35 @@ if [[ ${RESUME_LASTCMD_SUCCESS} -ne 0 ]]; then
       echo "         Low tuning upper index = ${LOW_FCH}"
       echo "         High tuning lower index = ${HIGH_FCL}"
       echo "         High tuning upper index = ${HIGH_FCH}"
+      echo
+      echo "    Generate plots to visualize bandpass? [y/n]"
+      read USER_ANSWER
+      GEN_PLOTS=$(echo "${USER_ANSWER}" | tr '[:upper:]' '[:lower:]')
 
       # Generate feedback plots if selected by user.
-      echo "    Generating bandpass plots..."
-      resumecmd -l ${LBL_BANDPASS} -k ${RESUME_LASTCMD_SUCCESS} -s ${RESUME_REPEAT} \
-         mpirun -np 1 python ${INSTALL_PATH}/bandpasscheck.py --low-tuning-lower ${LOW_FCL} \
-         --low-tuning-upper ${LOW_FCH} --high-tuning-lower ${HIGH_FCL} \
-         --high-tuning-upper ${HIGH_FCH} --work-dir ${WORK_DIR} "${WORK_DIR}/${COMBWATERFALL}.npy"
-      report_resumecmd
+      if [[ "${GEN_PLOTS}" =~ ${AFFIRMATIVE} ]]; then
+         echo "    Generating bandpass plots..."
+         resumecmd -l ${LBL_BANDPASS} -k ${RESUME_LASTCMD_SUCCESS} -s ${RESUME_REPEAT} \
+            mpirun -np 1 python ${INSTALL_PATH}/bandpasscheck.py --low-tuning-lower ${LOW_FCL} \
+            --low-tuning-upper ${LOW_FCH} --high-tuning-lower ${HIGH_FCL} \
+            --high-tuning-upper ${HIGH_FCH} --work-dir ${WORK_DIR} "${WORK_DIR}/${COMBWATERFALL}.npy"
+         report_resumecmd
 
-      echo "    Generating spectrogram plots..."
-      resumecmd -l ${LBL_SPECTROGRAM} -k ${RESUME_LASTCMD_SUCCESS} -s ${RESUME_REPEAT} \
-         mpirun -np 1 python ${INSTALL_PATH}/watchwaterfall.py --low-tuning-lower ${LOW_FCL} \
-         --low-tuning-upper ${LOW_FCH} --high-tuning-lower ${HIGH_FCL} \
-         --high-tuning-upper ${HIGH_FCH} --work-dir ${WORK_DIR} "${WORK_DIR}/${COMBWATERFALL}.npy"
-      report_resumecmd
+         echo "    Generating spectrogram plots..."
+         resumecmd -l ${LBL_SPECTROGRAM} -k ${RESUME_LASTCMD_SUCCESS} -s ${RESUME_REPEAT} \
+            mpirun -np 1 python ${INSTALL_PATH}/watchwaterfall.py --low-tuning-lower ${LOW_FCL} \
+            --low-tuning-upper ${LOW_FCH} --high-tuning-lower ${HIGH_FCL} \
+            --high-tuning-upper ${HIGH_FCH} --work-dir ${WORK_DIR} "${WORK_DIR}/${COMBWATERFALL}.npy"
+         report_resumecmd
 
-      # Display the plots if selected by the user.
-      if [[ "${USE_PLOTS}" =~ ${AFFIRMATIVE} ]]; then 
-         display "${WORK_DIR}/lowbandpass.png" &
-         display "${WORK_DIR}/highbandpass.png" &
+         # Display the plots if selected by the user.
+         if [[ "${USE_PLOTS}" =~ ${AFFIRMATIVE} ]]; then 
+            display "${WORK_DIR}/lowbandpass.png" &
+            display "${WORK_DIR}/highbandpass.png" &
 
-         display "${WORK_DIR}/lowspectrogram.png" &
-         display "${WORK_DIR}/highspectrogram.png" &
+            display "${WORK_DIR}/lowspectrogram.png" &
+            display "${WORK_DIR}/highspectrogram.png" &
+         fi
       fi
 
       echo "     Do you wish to change the bandpass region? [y/n] "
